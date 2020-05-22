@@ -1,6 +1,7 @@
 package com.byzhuozh;
 
 import org.apache.zookeeper.*;
+import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
 
@@ -14,8 +15,10 @@ public class ZookeeperTest {
             }
         }, false);
 
-        client.create("/byzhuozh", "joincoding".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        if (client.exists("/byzhuozh", false) == null){
+            client.create("/byzhuozh", "joincoding".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        }
 
-        System.out.println(new String(client.getData("/byzhuozh", false, null))+"==========");
+        System.out.println(new String(client.getData("/byzhuozh", false, null)) + "==========");
     }
 }

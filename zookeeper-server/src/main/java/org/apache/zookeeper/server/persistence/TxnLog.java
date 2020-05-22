@@ -27,6 +27,7 @@ import org.apache.zookeeper.txn.TxnHeader;
 /**
  * Interface for reading transaction logs.
  *
+ * 读取事务性日志的接口
  */
 public interface TxnLog {
 
