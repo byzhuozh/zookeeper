@@ -1,4 +1,4 @@
- /**
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -39,22 +39,23 @@ import org.slf4j.LoggerFactory;
  *      (bc)
  *   cf/
  *   (cf)
- */    
+ */
 public class PathTrie {
     /**
      * the logger for this class
      */
     private static final Logger LOG = LoggerFactory.getLogger(PathTrie.class);
-    
+
     /**
      * the root node of PathTrie
      */
-    private final TrieNode rootNode ;
-    
+    private final TrieNode rootNode;
+
     static class TrieNode {
-        boolean property = false;
+        boolean property = false;  //表示当前节点是否有配额
         final HashMap<String, TrieNode> children;
         TrieNode parent = null;
+
         /**
          * create a trienode with parent
          * as parameter
@@ -64,7 +65,7 @@ public class PathTrie {
             children = new HashMap<String, TrieNode>();
             this.parent = parent;
         }
-        
+
         /**
          * get the parent of this node
          * @return the parent node
@@ -72,7 +73,7 @@ public class PathTrie {
         TrieNode getParent() {
             return this.parent;
         }
-        
+
         /**
          * set the parent of this node
          * @param parent the parent to set to
@@ -80,7 +81,7 @@ public class PathTrie {
         void setParent(TrieNode parent) {
             this.parent = parent;
         }
-        
+
         /**
          * a property that is set 
          * for a node - making it 
@@ -89,7 +90,7 @@ public class PathTrie {
         void setProperty(boolean prop) {
             this.property = prop;
         }
-        
+
         /** the property of this
          * node 
          * @return the property for this
@@ -98,44 +99,44 @@ public class PathTrie {
         boolean getProperty() {
             return this.property;
         }
+
         /**
          * add a child to the existing node
          * @param childName the string name of the child
          * @param node the node that is the child
          */
         void addChild(String childName, TrieNode node) {
-            synchronized(children) {
+            synchronized (children) {
                 if (children.containsKey(childName)) {
                     return;
                 }
                 children.put(childName, node);
             }
         }
-     
+
         /**
          * delete child from this node
          * @param childName the string name of the child to 
          * be deleted
          */
         void deleteChild(String childName) {
-            synchronized(children) {
+            synchronized (children) {
                 if (!children.containsKey(childName)) {
                     return;
                 }
                 TrieNode childNode = children.get(childName);
                 // this is the only child node.
-                if (childNode.getChildren().length == 1) { 
+                if (childNode.getChildren().length == 1) {
                     childNode.setParent(null);
                     children.remove(childName);
-                }
-                else {
+                } else {
                     // their are more child nodes
                     // so just reset property.
                     childNode.setProperty(false);
                 }
             }
         }
-        
+
         /**
          * return the child of a node mapping
          * to the input childname
@@ -143,13 +144,12 @@ public class PathTrie {
          * @return the child of a node
          */
         TrieNode getChild(String childName) {
-            synchronized(children) {
-               if (!children.containsKey(childName)) {
-                   return null;
-               }
-               else {
-                   return children.get(childName);
-               }
+            synchronized (children) {
+                if (!children.containsKey(childName)) {
+                    return null;
+                } else {
+                    return children.get(childName);
+                }
             }
         }
 
@@ -160,11 +160,11 @@ public class PathTrie {
          * @return the string list of its children
          */
         String[] getChildren() {
-           synchronized(children) {
-               return children.keySet().toArray(new String[0]);
-           }
+            synchronized (children) {
+                return children.keySet().toArray(new String[0]);
+            }
         }
-        
+
         /**
          * get the string representation
          * for this node
@@ -172,15 +172,15 @@ public class PathTrie {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("Children of trienode: ");
-            synchronized(children) {
-                for (String str: children.keySet()) {
+            synchronized (children) {
+                for (String str : children.keySet()) {
                     sb.append(" " + str);
                 }
             }
             return sb.toString();
         }
     }
-    
+
     /**
      * construct a new PathTrie with
      * a root node of /
@@ -188,7 +188,7 @@ public class PathTrie {
     public PathTrie() {
         this.rootNode = new TrieNode(null);
     }
-    
+
     /**
      * add a path to the path trie 
      * @param path
@@ -197,22 +197,26 @@ public class PathTrie {
         if (path == null) {
             return;
         }
+
+        //把路径按照/分开
         String[] pathComponents = path.split("/");
         TrieNode parent = rootNode;
         String part = null;
         if (pathComponents.length <= 1) {
             throw new IllegalArgumentException("Invalid path " + path);
         }
-        for (int i=1; i<pathComponents.length; i++) {
+
+        for (int i = 1; i < pathComponents.length; i++) {
             part = pathComponents[i];
             if (parent.getChild(part) == null) {
+                //找到位置，插入
                 parent.addChild(part, new TrieNode(parent));
             }
             parent = parent.getChild(part);
         }
         parent.setProperty(true);
     }
-    
+
     /**
      * delete a path from the trie
      * @param path the path to be deleted
@@ -224,22 +228,22 @@ public class PathTrie {
         String[] pathComponents = path.split("/");
         TrieNode parent = rootNode;
         String part = null;
-        if (pathComponents.length <= 1) { 
+        if (pathComponents.length <= 1) {
             throw new IllegalArgumentException("Invalid path " + path);
         }
-        for (int i=1; i<pathComponents.length; i++) {
+        for (int i = 1; i < pathComponents.length; i++) {
             part = pathComponents[i];
             if (parent.getChild(part) == null) {
                 //the path does not exist 
                 return;
             }
             parent = parent.getChild(part);
-            LOG.info("{}",parent);
+            LOG.info("{}", parent);
         }
-        TrieNode realParent  = parent.getParent();
+        TrieNode realParent = parent.getParent();
         realParent.deleteChild(part);
     }
-    
+
     /**
      * return the largest prefix for the input path.
      * @param path the input path
@@ -262,21 +266,20 @@ public class PathTrie {
         String part = null;
         StringBuilder sb = new StringBuilder();
         int lastindex = -1;
-        while((i < pathComponents.length)) {
+        while ((i < pathComponents.length)) {
             if (parent.getChild(pathComponents[i]) != null) {
                 part = pathComponents[i];
                 parent = parent.getChild(part);
                 components.add(part);
                 if (parent.getProperty()) {
-                    lastindex = i-1;
+                    lastindex = i - 1;
                 }
-            }
-            else {
+            } else {
                 break;
             }
             i++;
         }
-        for (int j=0; j< (lastindex+1); j++) {
+        for (int j = 0; j < (lastindex + 1); j++) {
             sb.append("/" + components.get(j));
         }
         return sb.toString();
@@ -286,7 +289,7 @@ public class PathTrie {
      * clear all nodes
      */
     public void clear() {
-        for(String child : rootNode.getChildren()) {
+        for (String child : rootNode.getChildren()) {
             rootNode.deleteChild(child);
         }
     }

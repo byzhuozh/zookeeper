@@ -90,6 +90,8 @@ public class ServerConfig {
     /**
      * Read attributes from a QuorumPeerConfig.
      * @param config
+     *
+     * 从QuorumPeerConfig 配置中读取属性
      */
     public void readFrom(QuorumPeerConfig config) {
         clientPortAddress = config.getClientPortAddress();

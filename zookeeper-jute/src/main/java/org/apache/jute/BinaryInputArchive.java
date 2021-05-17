@@ -56,16 +56,19 @@ public class BinaryInputArchive implements InputArchive {
 
     // 内部类，对应BinaryInputArchive索引
     static private class BinaryIndex implements Index {
+        // 元素个数
         private int nelems;
 
         BinaryIndex(int nelems) {
             this.nelems = nelems;
         }
 
+        // 是否已经完成
         public boolean done() {
             return (nelems <= 0);
         }
 
+        // 移动一项
         public void incr() {
             nelems--;
         }

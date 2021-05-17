@@ -119,12 +119,13 @@ public class QuorumPeerMain {
                 .getSnapRetainCount(), config.getPurgeInterval());
         purgeMgr.start();
 
+        //如果是集群，直接用 QuorumPeerMain 中集群启动方法
         if (args.length == 1 && config.isDistributed()) {
             runFromConfig(config);
         } else {
-            LOG.warn("Either no config or no quorum defined in config, running "
-                    + " in standalone mode");
+            LOG.warn("Either no config or no quorum defined in config, running " + " in standalone mode");
             // there is only server in the quorum -- run as standalone
+            // 如果是单机就用单机启动方法
             ZooKeeperServerMain.main(args);
         }
     }

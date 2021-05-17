@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -45,17 +45,24 @@ import org.slf4j.LoggerFactory;
  * above the implementations
  * of txnlog and snapshot
  * classes
+ * <p>
+ * 封装了TxnLog和SnapShot，其在持久化过程中是一个帮助类
  */
 public class FileTxnSnapLog {
-    //the direcotry containing the
-    //the transaction logs
+    // 日志文件目录
     private final File dataDir;
-    //the directory containing the
-    //the snapshot directory
+
+    // 快照文件目录
     private final File snapDir;
+
+    // 事务日志
     private TxnLog txnLog;
+
+    // 快照
     private SnapShot snapLog;
     private final boolean trustEmptySnapshot;
+
+    // 版本号
     public final static int VERSION = 2;
     public final static String version = "version-";
 
@@ -76,6 +83,10 @@ public class FileTxnSnapLog {
      * restore to gather information
      * while the data is being
      * restored.
+     * <p>
+     * 接收事务应用过程中的回调
+     * <p>
+     * 在Zookeeper数据恢复后期，会有事务修正过程，此过程会回调PlayBackListener来进行对应的数据修正。
      */
     public interface PlayBackListener {
         void onTxnLoaded(TxnHeader hdr, Record rec);
@@ -96,10 +107,11 @@ public class FileTxnSnapLog {
     /**
      * the constructor which takes the datadir and
      * snapdir.
+     *
      * @param dataDir the transaction directory
      * @param snapDir the snapshot directory
-     *
-     * 完成日志与快照持久化目录的创建，以及是否可写权限验证
+     *                <p>
+     *                完成日志与快照持久化目录的创建，以及是否可写权限验证
      */
     public FileTxnSnapLog(File dataDir, File snapDir) throws IOException {
         LOG.debug("Opening datadir:{} snapDir:{}", dataDir, snapDir);
@@ -156,7 +168,7 @@ public class FileTxnSnapLog {
 
         // check content of transaction log and snapshot dirs if they are two different directories
         // See ZOOKEEPER-2967 for more details
-        if(!this.dataDir.getPath().equals(this.snapDir.getPath())){
+        if (!this.dataDir.getPath().equals(this.snapDir.getPath())) {
             checkLogDir();
             checkSnapDir();
         }
@@ -196,6 +208,7 @@ public class FileTxnSnapLog {
     /**
      * get the datadir used by this filetxn
      * snap log
+     *
      * @return the data dir
      */
     public File getDataDir() {
@@ -205,6 +218,7 @@ public class FileTxnSnapLog {
     /**
      * get the snap dir used by this
      * filetxn snap log
+     *
      * @return the snap dir
      */
     public File getSnapDir() {
@@ -215,15 +229,17 @@ public class FileTxnSnapLog {
      * this function restores the server
      * database after reading from the
      * snapshots and transaction logs
-     * @param dt the datatree to be restored
+     *
+     * @param dt       the datatree to be restored
      * @param sessions the sessions to be restored
      * @param listener the playback listener to run on the
-     * database restoration
+     *                 database restoration
      * @return the highest zxid restored
      * @throws IOException
      */
     public long restore(DataTree dt, Map<Long, Integer> sessions,
                         PlayBackListener listener) throws IOException {
+        // 根据snap文件反序列化dt和sessions
         long deserializeResult = snapLog.deserialize(dt, sessions);
         FileTxnLog txnLog = new FileTxnLog(dataDir);
 
@@ -247,7 +263,7 @@ public class FileTxnSnapLog {
             }
             /* TODO: (br33d) we should either put a ConcurrentHashMap on restore()
              *       or use Map on save() */
-            save(dt, (ConcurrentHashMap<Long, Integer>)sessions);
+            save(dt, (ConcurrentHashMap<Long, Integer>) sessions);
             /* return a zxid of zero, since we the database is empty */
             return 0;
         }
@@ -259,40 +275,55 @@ public class FileTxnSnapLog {
      * This function will fast forward the server database to have the latest
      * transactions in it.  This is the same as restore, but only reads from
      * the transaction logs and not restores from a snapshot.
-     * @param dt the datatree to write transactions to.
+     *
+     * @param dt       the datatree to write transactions to.
      * @param sessions the sessions to be restored.
      * @param listener the playback listener to run on the
-     * database transactions.
+     *                 database transactions.
      * @return the highest zxid restored.
      * @throws IOException
      */
     public long fastForwardFromEdits(DataTree dt, Map<Long, Integer> sessions,
                                      PlayBackListener listener) throws IOException {
-        TxnIterator itr = txnLog.read(dt.lastProcessedZxid+1);
+        // 获取比最后处理的zxid+1大的log文件的迭代器
+        TxnIterator itr = txnLog.read(dt.lastProcessedZxid + 1);
+
+        // 最大的zxid
         long highestZxid = dt.lastProcessedZxid;
         TxnHeader hdr;
         try {
             while (true) {
                 // iterator points to
                 // the first valid txn when initialized
+                // itr在read函数调用后就已经指向第一个合法的事务
+                // 获取事务头
                 hdr = itr.getHeader();
                 if (hdr == null) {
                     //empty logs
                     return dt.lastProcessedZxid;
                 }
+
+                // 事务头的zxid小于snapshot中的最大zxid并且其不为0，则会报错
                 if (hdr.getZxid() < highestZxid && highestZxid != 0) {
                     LOG.error("{}(highestZxid) > {}(next log) for type {}",
                             highestZxid, hdr.getZxid(), hdr.getType());
                 } else {
+                    // 重新赋值highestZxid
                     highestZxid = hdr.getZxid();
                 }
+
                 try {
-                    processTransaction(hdr,dt,sessions, itr.getTxn());
-                } catch(KeeperException.NoNodeException e) {
-                   throw new IOException("Failed to process transaction type: " +
-                         hdr.getType() + " error: " + e.getMessage(), e);
+                    // 在datatree上处理事务
+                    processTransaction(hdr, dt, sessions, itr.getTxn());
+                } catch (KeeperException.NoNodeException e) {
+                    throw new IOException("Failed to process transaction type: " +
+                            hdr.getType() + " error: " + e.getMessage(), e);
                 }
+
+                // 每处理完一个事务都会进行回调
                 listener.onTxnLoaded(hdr, itr.getTxn());
+
+                // 已无事务，跳出循环
                 if (!itr.next())
                     break;
             }
@@ -301,6 +332,8 @@ public class FileTxnSnapLog {
                 itr.close();
             }
         }
+
+        // 返回最高的zxid
         return highestZxid;
     }
 
@@ -318,10 +351,10 @@ public class FileTxnSnapLog {
     /**
      * Get TxnIterator for iterating through txnlog starting at a given zxid
      *
-     * @param zxid starting zxid
+     * @param zxid        starting zxid
      * @param fastForward true if the iterator should be fast forwarded to point
-     *        to the txn of a given zxid, else the iterator will point to the
-     *        starting txn of a txnlog that may contain txn of a given zxid
+     *                    to the txn of a given zxid, else the iterator will point to the
+     *                    starting txn of a txnlog that may contain txn of a given zxid
      * @return TxnIterator
      * @throws IOException
      */
@@ -330,43 +363,44 @@ public class FileTxnSnapLog {
         FileTxnLog txnLog = new FileTxnLog(dataDir);
         return txnLog.read(zxid, fastForward);
     }
-    
+
     /**
      * process the transaction on the datatree
-     * @param hdr the hdr of the transaction
-     * @param dt the datatree to apply transaction to
+     *
+     * @param hdr      the hdr of the transaction
+     * @param dt       the datatree to apply transaction to
      * @param sessions the sessions to be restored
-     * @param txn the transaction to be applied
+     * @param txn      the transaction to be applied
      */
-    public void processTransaction(TxnHeader hdr,DataTree dt,
-            Map<Long, Integer> sessions, Record txn)
-        throws KeeperException.NoNodeException {
+    public void processTransaction(TxnHeader hdr, DataTree dt,
+                                   Map<Long, Integer> sessions, Record txn)
+            throws KeeperException.NoNodeException {
         ProcessTxnResult rc;
         switch (hdr.getType()) {
-        case OpCode.createSession:
-            sessions.put(hdr.getClientId(),
-                    ((CreateSessionTxn) txn).getTimeOut());
-            if (LOG.isTraceEnabled()) {
-                ZooTrace.logTraceMessage(LOG,ZooTrace.SESSION_TRACE_MASK,
-                        "playLog --- create session in log: 0x"
-                                + Long.toHexString(hdr.getClientId())
-                                + " with timeout: "
-                                + ((CreateSessionTxn) txn).getTimeOut());
-            }
-            // give dataTree a chance to sync its lastProcessedZxid
-            rc = dt.processTxn(hdr, txn);
-            break;
-        case OpCode.closeSession:
-            sessions.remove(hdr.getClientId());
-            if (LOG.isTraceEnabled()) {
-                ZooTrace.logTraceMessage(LOG,ZooTrace.SESSION_TRACE_MASK,
-                        "playLog --- close session in log: 0x"
-                                + Long.toHexString(hdr.getClientId()));
-            }
-            rc = dt.processTxn(hdr, txn);
-            break;
-        default:
-            rc = dt.processTxn(hdr, txn);
+            case OpCode.createSession:
+                sessions.put(hdr.getClientId(),
+                        ((CreateSessionTxn) txn).getTimeOut());
+                if (LOG.isTraceEnabled()) {
+                    ZooTrace.logTraceMessage(LOG, ZooTrace.SESSION_TRACE_MASK,
+                            "playLog --- create session in log: 0x"
+                                    + Long.toHexString(hdr.getClientId())
+                                    + " with timeout: "
+                                    + ((CreateSessionTxn) txn).getTimeOut());
+                }
+                // give dataTree a chance to sync its lastProcessedZxid
+                rc = dt.processTxn(hdr, txn);
+                break;
+            case OpCode.closeSession:
+                sessions.remove(hdr.getClientId());
+                if (LOG.isTraceEnabled()) {
+                    ZooTrace.logTraceMessage(LOG, ZooTrace.SESSION_TRACE_MASK,
+                            "playLog --- close session in log: 0x"
+                                    + Long.toHexString(hdr.getClientId()));
+                }
+                rc = dt.processTxn(hdr, txn);
+                break;
+            default:
+                rc = dt.processTxn(hdr, txn);
         }
 
         /**
@@ -384,6 +418,7 @@ public class FileTxnSnapLog {
 
     /**
      * the last logged zxid on the transaction logs
+     *
      * @return the last logged zxid
      */
     public long getLastLoggedZxid() {
@@ -393,14 +428,15 @@ public class FileTxnSnapLog {
 
     /**
      * save the datatree and the sessions into a snapshot
-     * @param dataTree the datatree to be serialized onto disk
+     *
+     * @param dataTree             the datatree to be serialized onto disk
      * @param sessionsWithTimeouts the session timeouts to be
-     * serialized onto disk
+     *                             serialized onto disk
      * @throws IOException
      */
     public void save(DataTree dataTree,
-            ConcurrentHashMap<Long, Integer> sessionsWithTimeouts)
-        throws IOException {
+                     ConcurrentHashMap<Long, Integer> sessionsWithTimeouts)
+            throws IOException {
         long lastZxid = dataTree.lastProcessedZxid;
         File snapshotFile = new File(snapDir, Util.makeSnapshotName(lastZxid));
         LOG.info("Snapshotting: 0x{} to {}", Long.toHexString(lastZxid),
@@ -412,6 +448,7 @@ public class FileTxnSnapLog {
     /**
      * truncate the transaction logs the zxid
      * specified
+     *
      * @param zxid the zxid to truncate the logs to
      * @return true if able to truncate the log, false if not
      * @throws IOException
@@ -443,6 +480,7 @@ public class FileTxnSnapLog {
     /**
      * the most recent snapshot in the snapshot
      * directory
+     *
      * @return the file that contains the most
      * recent snapshot
      * @throws IOException
@@ -454,6 +492,7 @@ public class FileTxnSnapLog {
 
     /**
      * the n most recent snapshots
+     *
      * @param n the number of recent snapshots
      * @return the list of n most recent snapshots, with
      * the most recent in front
@@ -469,8 +508,9 @@ public class FileTxnSnapLog {
      * This includes logs with starting zxid greater than given zxid, as well as the
      * newest transaction log with starting zxid less than given zxid.  The latter log
      * file may contain transactions beyond given zxid.
+     *
      * @param zxid the zxid that contains logs greater than
-     * zxid
+     *             zxid
      * @return
      */
     public File[] getSnapshotLogs(long zxid) {
@@ -479,8 +519,9 @@ public class FileTxnSnapLog {
 
     /**
      * append the request to the transaction logs
+     *
      * @param si the request to be appended
-     * returns true iff something appended, otw false
+     *           returns true iff something appended, otw false
      * @throws IOException
      */
     public boolean append(Request si) throws IOException {
@@ -489,6 +530,7 @@ public class FileTxnSnapLog {
 
     /**
      * commit the transaction of logs
+     *
      * @throws IOException
      */
     public void commit() throws IOException {
@@ -496,7 +538,6 @@ public class FileTxnSnapLog {
     }
 
     /**
-     *
      * @return elapsed sync time of transaction log commit in milliseconds
      */
     public long getTxnLogElapsedSyncTime() {
@@ -505,6 +546,7 @@ public class FileTxnSnapLog {
 
     /**
      * roll the transaction logs
+     *
      * @throws IOException
      */
     public void rollLog() throws IOException {
@@ -513,6 +555,7 @@ public class FileTxnSnapLog {
 
     /**
      * close the transaction log files
+     *
      * @throws IOException
      */
     public void close() throws IOException {
@@ -531,6 +574,7 @@ public class FileTxnSnapLog {
         public DatadirException(String msg) {
             super(msg);
         }
+
         public DatadirException(String msg, Exception e) {
             super(msg, e);
         }

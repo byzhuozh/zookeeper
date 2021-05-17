@@ -42,6 +42,7 @@ public interface TxnLog {
      * log being appended to
      * @throws IOException 
      */
+    // 回滚日志
     void rollLog() throws IOException;
     /**
      * Append a request to the transaction log
@@ -50,6 +51,7 @@ public interface TxnLog {
      * returns true iff something appended, otw false 
      * @throws IOException
      */
+    // 添加一个请求至事务性日志
     boolean append(TxnHeader hdr, Record r) throws IOException;
 
     /**
@@ -60,6 +62,7 @@ public interface TxnLog {
      * next transaction in the logs.
      * @throws IOException
      */
+    // 读取事务性日志
     TxnIterator read(long zxid) throws IOException;
     
     /**
@@ -67,6 +70,7 @@ public interface TxnLog {
      * @return the last zxid of the logged transactions.
      * @throws IOException
      */
+    // 获取事务性操作的最新zxid
     long getLastLoggedZxid() throws IOException;
     
     /**
@@ -75,6 +79,7 @@ public interface TxnLog {
      * @param zxid the zxid to truncate at.
      * @throws IOException 
      */
+    // 清空日志，与Leader保持同步
     boolean truncate(long zxid) throws IOException;
     
     /**
@@ -82,6 +87,7 @@ public interface TxnLog {
      * @return the dbid for this transaction log.
      * @throws IOException
      */
+    // 获取数据库的id
     long getDbId() throws IOException;
     
     /**
@@ -89,6 +95,7 @@ public interface TxnLog {
      * they are persisted
      * @throws IOException
      */
+    // 提交事务并进行确认
     void commit() throws IOException;
 
     /**
@@ -100,28 +107,34 @@ public interface TxnLog {
     /** 
      * close the transactions logs
      */
+    // 关闭事务性日志
     void close() throws IOException;
+
     /**
      * an iterating interface for reading 
      * transaction logs. 
      */
+    // 读取事务日志的迭代器接口
     public interface TxnIterator {
         /**
          * return the transaction header.
          * @return return the transaction header.
          */
+        // 获取事务头部
         TxnHeader getHeader();
         
         /**
          * return the transaction record.
          * @return return the transaction record.
          */
+        // 获取事务
         Record getTxn();
      
         /**
          * go to the next transaction record.
          * @throws IOException
          */
+        // 下个事务
         boolean next() throws IOException;
         
         /**
@@ -129,6 +142,7 @@ public interface TxnLog {
          * resources
          * @throws IOException
          */
+        // 关闭文件释放资源
         void close() throws IOException;
         
         /**

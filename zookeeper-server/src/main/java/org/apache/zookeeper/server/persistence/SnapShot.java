@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,6 +17,7 @@
  */
 
 package org.apache.zookeeper.server.persistence;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -31,7 +32,7 @@ import org.apache.zookeeper.server.DataTree;
  * 持久层快照接口
  */
 public interface SnapShot {
-    
+
     /**
      * deserialize a data tree from the last valid snapshot and 
      * return the last zxid that was deserialized
@@ -40,29 +41,33 @@ public interface SnapShot {
      * @return the last zxid that was deserialized from the snapshot
      * @throws IOException
      */
-    long deserialize(DataTree dt, Map<Long, Integer> sessions) 
-        throws IOException;
-    
+    // 反序列化
+    long deserialize(DataTree dt, Map<Long, Integer> sessions)
+            throws IOException;
+
     /**
      * persist the datatree and the sessions into a persistence storage
      * @param dt the datatree to be serialized
-     * @param sessions 
+     * @param sessions
      * @throws IOException
      */
-    void serialize(DataTree dt, Map<Long, Integer> sessions, 
-            File name) 
-        throws IOException;
-    
+    // 序列化
+    void serialize(DataTree dt, Map<Long, Integer> sessions,
+                   File name)
+            throws IOException;
+
     /**
      * find the most recent snapshot file
      * @return the most recent snapshot file
      * @throws IOException
      */
+    // 查找最新的snapshot文件
     File findMostRecentSnapshot() throws IOException;
-    
+
     /**
      * free resources from this snapshot immediately
      * @throws IOException
      */
+    // 释放资源
     void close() throws IOException;
 } 

@@ -290,6 +290,7 @@ public class ClientCnxnSocketNetty extends ClientCnxnSocket {
                         + Long.toHexString(sessionId)
                         + " is lost");
             }
+
             if (head != null) {
                 doWrite(pendingQueue, head, cnxn);
             }
@@ -365,7 +366,9 @@ public class ClientCnxnSocketNetty extends ClientCnxnSocket {
                         pendingQueue.add(p);
                     }
                 }
+                //发送
                 sendPktOnly(p);
+
                 anyPacketsSent = true;
             }
             if (outgoingQueue.isEmpty()) {
