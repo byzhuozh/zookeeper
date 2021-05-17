@@ -283,27 +283,31 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
          *  
          * See ZOOKEEPER-1642 for more detail.
          */
-        if(zkDb.isInitialized()){
+        if(zkDb.isInitialized()){    // 内存数据库已被初始化
+            // 设置为最后处理的Zxid
             setZxid(zkDb.getDataTreeLastProcessedZxid());
         }
-        else {
+        else {  // 未被初始化，则加载数据库
             setZxid(zkDb.loadDataBase());
         }
         
         // Clean up dead sessions
         LinkedList<Long> deadSessions = new LinkedList<Long>();
-        for (Long session : zkDb.getSessions()) {
+        for (Long session : zkDb.getSessions()) {   // 遍历所有的会话
             if (zkDb.getSessionWithTimeOuts().get(session) == null) {
+                // 搜集过期的会话
                 deadSessions.add(session);
             }
         }
 
         for (long session : deadSessions) {
             // XXX: Is lastProcessedZxid really the best thing to use?
+            // 删除会话
             killSession(session, zkDb.getDataTreeLastProcessedZxid());
         }
 
         // Make a clean snapshot
+        // 创建一个新的数据快照
         takeSnapshot();
     }
 
