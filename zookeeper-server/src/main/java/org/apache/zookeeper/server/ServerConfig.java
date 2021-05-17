@@ -83,6 +83,7 @@ public class ServerConfig {
 
         // let qpconfig parse the file and then pull the stuff we are
         // interested in
+        //读取配置文件的基本属性
         readFrom(config);
     }
 

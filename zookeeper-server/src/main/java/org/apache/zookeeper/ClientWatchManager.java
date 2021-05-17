@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,12 +29,14 @@ public interface ClientWatchManager {
      * internal structure as if the watches had triggered. The intent being 
      * that the callee is now responsible for notifying the watchers of the 
      * event, possibly at some later time.
-     * 
+     *
      * @param state event state
      * @param type event type
      * @param path event path
      * @return may be empty set but must not be null
+     *
+     * 事件发生时，返回需要被通知的Watcher集合
      */
     public Set<Watcher> materialize(Watcher.Event.KeeperState state,
-        Watcher.Event.EventType type, String path);
+                                    Watcher.Event.EventType type, String path);
 }
