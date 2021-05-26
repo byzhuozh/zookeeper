@@ -33,16 +33,19 @@ public class ProposalRequestProcessor implements RequestProcessor {
     private static final Logger LOG =
         LoggerFactory.getLogger(ProposalRequestProcessor.class);
 
+    //leader角色才有这个请求处理器，这里能拿到LeaderZooKeeperServer
     LeaderZooKeeperServer zks;
 
+    //下一个处理器
     RequestProcessor nextProcessor;
 
+    //同步处理器
     SyncRequestProcessor syncProcessor;
 
     public ProposalRequestProcessor(LeaderZooKeeperServer zks,
             RequestProcessor nextProcessor) {
         this.zks = zks;
-        this.nextProcessor = nextProcessor;
+        this.nextProcessor = nextProcessor;  //一般是CommitProcessor
         AckRequestProcessor ackProcessor = new AckRequestProcessor(zks.getLeader());
         syncProcessor = new SyncRequestProcessor(zks, ackProcessor);
     }
@@ -51,6 +54,7 @@ public class ProposalRequestProcessor implements RequestProcessor {
      * initialize this processor
      */
     public void initialize() {
+        //启动同步处理器
         syncProcessor.start();
     }
 
@@ -68,17 +72,23 @@ public class ProposalRequestProcessor implements RequestProcessor {
          * call processRequest on the next processor.
          */
 
+        //如果是client的同步的请求
         if (request instanceof LearnerSyncRequest){
+            //非事物请求交给下一个 CommitProcessor
             zks.getLeader().processSync((LearnerSyncRequest)request);
         } else {
             nextProcessor.processRequest(request);
+            //hdr不为空，说明是事物请求，委托给leader，发送proposal消息
             if (request.getHdr() != null) {
-                // We need to sync and get consensus on any transactions
                 try {
+                    //leader发出提议,集群进行投票
                     zks.getLeader().propose(request);
                 } catch (XidRolloverException e) {
                     throw new RequestProcessorException(e.getMessage(), e);
                 }
+
+                //并且自己先持久化到txnLog日志里面
+                //事务请求需要syncProcessor进行处理
                 syncProcessor.processRequest(request);
             }
         }
@@ -86,7 +96,7 @@ public class ProposalRequestProcessor implements RequestProcessor {
 
     public void shutdown() {
         LOG.info("Shutting down");
-        nextProcessor.shutdown();
+        nextProcessor.shutdown();  //ProposalRequestProcessor后面两个Processor都要关闭
         syncProcessor.shutdown();
     }
 

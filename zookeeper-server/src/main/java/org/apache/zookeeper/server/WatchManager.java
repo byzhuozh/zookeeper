@@ -136,7 +136,7 @@ class WatchManager {
             if (supress != null && supress.contains(w)) {  //如果watcher在supress的set中跳过
                 continue;
             }
-            //触发 watch 逻辑
+            //触发 watch 逻辑， 默认实现是 NIOServerCnxn
             w.process(e);
         }
 
@@ -168,6 +168,8 @@ class WatchManager {
      * @param byPath iff true output watches by paths, otw output
      *               watches by connection
      * @return string representation of watches
+     *
+     * 把watch写到磁盘中
      */
     synchronized void dumpWatches(PrintWriter pwriter, boolean byPath) {
         if (byPath) {

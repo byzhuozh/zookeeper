@@ -48,8 +48,8 @@ public class WorkerService {
     private static final Logger LOG =
         LoggerFactory.getLogger(WorkerService.class);
 
-    private final ArrayList<ExecutorService> workers =
-        new ArrayList<ExecutorService>();
+    //线程池
+    private final ArrayList<ExecutorService> workers = new ArrayList<ExecutorService>();
 
     private final String threadNamePrefix;
     private int numWorkerThreads;
@@ -114,8 +114,7 @@ public class WorkerService {
             return;
         }
 
-        ScheduledWorkRequest scheduledWorkRequest =
-            new ScheduledWorkRequest(workRequest);
+        ScheduledWorkRequest scheduledWorkRequest = new ScheduledWorkRequest(workRequest);
 
         // If we have a worker thread pool, use that; otherwise, do the work
         // directly.
@@ -125,7 +124,10 @@ public class WorkerService {
                 // make sure to map negative ids as well to [0, size-1]
                 int workerNum = ((int) (id % size) + size) % size;
                 ExecutorService worker = workers.get(workerNum);
+
+                //执行请求
                 worker.execute(scheduledWorkRequest);
+
             } catch (RejectedExecutionException e) {
                 LOG.warn("ExecutorService rejected execution", e);
                 workRequest.cleanup();

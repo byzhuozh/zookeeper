@@ -126,8 +126,7 @@ public class ZooKeeperSaslClient {
         AppConfigurationEntry entries[] = null;
         RuntimeException runtimeException = null;
         try {
-            entries = Configuration.getConfiguration()
-                    .getAppConfigurationEntry(clientSection);
+            entries = Configuration.getConfiguration().getAppConfigurationEntry(clientSection);
         } catch (SecurityException e) {
             // handle below: might be harmless if the user doesn't intend to use JAAS authentication.
             runtimeException = e;
@@ -137,6 +136,7 @@ public class ZooKeeperSaslClient {
             // different types of RuntimeException found
             runtimeException = e;
         }
+
         if (entries != null) {
             this.configStatus = "Will attempt to SASL-authenticate using Login Context section '" + clientSection + "'";
             this.saslClient = createSaslClient(serverPrincipal, clientSection);

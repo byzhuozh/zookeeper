@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -40,40 +40,36 @@ import org.slf4j.LoggerFactory;
 /**
  * A ClientCnxnSocket does the lower level communication with a socket
  * implementation.
- * 
+ * <p>
  * This code has been moved out of ClientCnxn so that a Netty implementation can
  * be provided as an alternative to the NIO socket code.
- * 
  */
 abstract class ClientCnxnSocket {
     private static final Logger LOG = LoggerFactory.getLogger(ClientCnxnSocket.class);
 
+    //是否初始化
     protected boolean initialized;
 
-    /**
-     * This buffer is only used to read the length of the incoming message.
-     */
+    //仅仅用来读取 incoming message的长度
     protected final ByteBuffer lenBuffer = ByteBuffer.allocateDirect(4);
 
-    /**
-     * After the length is read, a new incomingBuffer is allocated in
-     * readLength() to receive the full message.
-     */
     protected ByteBuffer incomingBuffer = lenBuffer;
+    //send次数
     protected final AtomicLong sentCount = new AtomicLong(0L);
+    //接收次数
     protected final AtomicLong recvCount = new AtomicLong(0L);
+    //上次接收时间
     protected long lastHeard;
+    //上次发送时间
     protected long lastSend;
+    //当前时间
     protected long now;
     protected ClientCnxn.SendThread sendThread;
     protected LinkedBlockingDeque<Packet> outgoingQueue;
     protected ZKClientConfig clientConfig;
     private int packetLen = ZKClientConfig.CLIENT_MAX_PACKET_LENGTH_DEFAULT;
 
-    /**
-     * The sessionId is only available here for Log and Exception messages.
-     * Otherwise the socket doesn't need to know it.
-     */
+    //仅仅用来辅助log和Exception记录用的
     protected long sessionId;
 
     void introduce(ClientCnxn.SendThread sendThread, long sessionId,
@@ -116,14 +112,22 @@ abstract class ClientCnxnSocket {
         this.lastHeard = now;
     }
 
+    /**
+     * 读取incoming message的length
+     *
+     * @throws IOException
+     */
     void readLength() throws IOException {
         int len = incomingBuffer.getInt();
-        if (len < 0 || len >= packetLen) {
+        if (len < 0 || len >= packetLen) {   // 默认长度[0,4M]之间
             throw new IOException("Packet len" + len + " is out of range!");
         }
         incomingBuffer = ByteBuffer.allocate(len);
     }
 
+    /**
+     * 读取connect的response
+     */
     void readConnectResult() throws IOException {
         if (LOG.isTraceEnabled()) {
             StringBuilder buf = new StringBuilder("0x[");
@@ -134,24 +138,29 @@ abstract class ClientCnxnSocket {
             LOG.trace("readConnectResult " + incomingBuffer.remaining() + " "
                     + buf.toString());
         }
+
         ByteBufferInputStream bbis = new ByteBufferInputStream(incomingBuffer);
         BinaryInputArchive bbia = BinaryInputArchive.getArchive(bbis);
         ConnectResponse conRsp = new ConnectResponse();
+
+        // 将返回报文反序列化成 connectResponse 对象
         conRsp.deserialize(bbia, "connect");
 
         // read "is read-only" flag
         boolean isRO = false;
         try {
+            //反序列化,看是否是只读的
             isRO = bbia.readBool("readOnly");
         } catch (IOException e) {
-            // this is ok -- just a packet from an old server which
-            // doesn't contain readOnly field
             LOG.warn("Connected to an old server; r-o mode will be unavailable");
         }
 
         this.sessionId = conRsp.getSessionId();
-        sendThread.onConnected(conRsp.getTimeOut(), this.sessionId,
-                conRsp.getPasswd(), isRO);
+
+        // 这里就是对 server 端返回的超时事件等参数进行配置
+        // 连接时候配置的超时参数会以配置中的为准, 之后会以服务端返回的为准
+        //sendThread完成connect时一些参数验证以及zk state更新以及事件处理
+        sendThread.onConnected(conRsp.getTimeOut(), this.sessionId, conRsp.getPasswd(), isRO);
     }
 
     abstract boolean isConnected();
@@ -201,7 +210,7 @@ abstract class ClientCnxnSocket {
      * - write outgoing queue packets.
      * - update relevant timestamp.
      *
-     * @param waitTimeOut timeout in blocking wait. Unit in MilliSecond.
+     * @param waitTimeOut  timeout in blocking wait. Unit in MilliSecond.
      * @param pendingQueue These are the packets that have been sent and
      *                     are waiting for a response.
      * @param cnxn
@@ -209,7 +218,7 @@ abstract class ClientCnxnSocket {
      * @throws InterruptedException
      */
     abstract void doTransport(int waitTimeOut, List<Packet> pendingQueue,
-            ClientCnxn cnxn)
+                              ClientCnxn cnxn)
             throws IOException, InterruptedException;
 
     /**

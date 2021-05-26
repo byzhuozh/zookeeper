@@ -91,6 +91,7 @@ public class JettyAdminServer implements AdminServer {
         context.setContextPath("/*");
         server.setHandler(context);
 
+        // jettyServer 的 Servlet 容器处理器
         context.addServlet(new ServletHolder(new CommandServlet()), commandUrl + "/*");
     }
 

@@ -70,6 +70,7 @@ public class ZKDatabase {
      * make sure on a clear you take care of
      * all these members.
      */
+    // ZooKeeper的内存节点信息
     protected DataTree dataTree;
     protected ConcurrentHashMap<Long, Integer> sessionsWithTimeouts;
     protected FileTxnSnapLog snapLog;

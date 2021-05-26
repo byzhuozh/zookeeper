@@ -124,13 +124,12 @@ import java.util.Set;
  * <p>
  * A client needs an object of a class implementing Watcher interface for
  * processing the events delivered to the client.
- *
+ * <p>
  * When a client drops the current connection and re-connects to a server, all the
  * existing watches are considered as being triggered but the undelivered events
  * are lost. To emulate this, the client will generate a special event to tell
  * the event handler a connection has been dropped. This special event has
  * EventType None and KeeperState Disconnected.
- *
  */
 /*
  * We suppress the "try" warning here because the close() method's signature
@@ -145,7 +144,7 @@ public class ZooKeeper implements AutoCloseable {
 
     /**
      * @deprecated Use {@link ZKClientConfig#ZOOKEEPER_CLIENT_CNXN_SOCKET}
-     *             instead.
+     * instead.
      */
     @Deprecated
     public static final String ZOOKEEPER_CLIENT_CNXN_SOCKET = "zookeeper.clientCnxnSocket";
@@ -153,7 +152,7 @@ public class ZooKeeper implements AutoCloseable {
 
     /**
      * @deprecated Use {@link ZKClientConfig#SECURE_CLIENT}
-     *             instead.
+     * instead.
      */
     @Deprecated
     public static final String SECURE_CLIENT = "zookeeper.client.secure";
@@ -170,20 +169,20 @@ public class ZooKeeper implements AutoCloseable {
     protected final HostProvider hostProvider;
 
     /**
-     * This function allows a client to update the connection string by providing 
-     * a new comma separated list of host:port pairs, each corresponding to a 
-     * ZooKeeper server. 
+     * This function allows a client to update the connection string by providing
+     * a new comma separated list of host:port pairs, each corresponding to a
+     * ZooKeeper server.
      * <p>
      * The function invokes a <a href="https://issues.apache.org/jira/browse/ZOOKEEPER-1355">
-     * probabilistic load-balancing algorithm</a> which may cause the client to disconnect from 
-     * its current host with the goal to achieve expected uniform number of connections per server 
+     * probabilistic load-balancing algorithm</a> which may cause the client to disconnect from
+     * its current host with the goal to achieve expected uniform number of connections per server
      * in the new list. In case the current host to which the client is connected is not in the new
      * list this call will always cause the connection to be dropped. Otherwise, the decision
      * is based on whether the number of servers has increased or decreased and by how much.
      * For example, if the previous connection string contained 3 hosts and now the list contains
      * these 3 hosts and 2 more hosts, 40% of clients connected to each of the 3 hosts will
-     * move to one of the new hosts in order to balance the load. The algorithm will disconnect 
-     * from the current host with probability 0.4 and in this case cause the client to connect 
+     * move to one of the new hosts in order to balance the load. The algorithm will disconnect
+     * from the current host with probability 0.4 and in this case cause the client to connect
      * to one of the 2 new hosts, chosen at random.
      * <p>
      * If the connection is dropped, the client moves to a special mode "reconfigMode" where he chooses
@@ -195,17 +194,16 @@ public class ZooKeeper implements AutoCloseable {
      * (the order is non-deterministic, as we random shuffle the list), until a
      * connection is established. The client will continue attempts until the
      * session is explicitly closed (or the session is expired by the server).
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
-     *            If the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).     
      *
-     * @throws IOException in cases of network failure     
+     * @param connectString comma separated host:port pairs, each corresponding to a zk
+     *                      server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
+     *                      If the optional chroot suffix is used the example would look
+     *                      like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                      where the client would be rooted at "/app/a" and all paths
+     *                      would be relative to this root - ie getting/setting/etc...
+     *                      "/foo/bar" would result in operations being run on
+     *                      "/app/a/foo/bar" (from the server perspective).
+     * @throws IOException in cases of network failure
      */
     public void updateServerList(String connectString) throws IOException {
         ConnectStringParser connectStringParser = new ConnectStringParser(connectString);
@@ -256,7 +254,7 @@ public class ZooKeeper implements AutoCloseable {
 
     /**
      * Manage watchers & handle events generated by the ClientCnxn object.
-     *
+     * <p>
      * We are implementing this as a nested class of ZooKeeper so that
      * the public methods will not be exposed as part of the ZooKeeper client
      * API.
@@ -364,12 +362,9 @@ public class ZooKeeper implements AutoCloseable {
          * Validate the provided znode path contains the given watcher and
          * watcherType
          *
-         * @param path
-         *            - client path
-         * @param watcher
-         *            - watcher object reference
-         * @param watcherType
-         *            - type of the watcher
+         * @param path        - client path
+         * @param watcher     - watcher object reference
+         * @param watcherType - type of the watcher
          * @throws NoWatcherException
          */
         void containsWatcher(String path, Watcher watcher,
@@ -557,8 +552,9 @@ public class ZooKeeper implements AutoCloseable {
 
         /**
          * Register the watcher with the set of watches on path.
+         *
          * @param rc the result code of the operation that attempted to
-         * add the watch on the path.
+         *           add the watch on the path.
          */
         public void register(int rc) {
             if (shouldAddWatch(rc)) {
@@ -576,8 +572,9 @@ public class ZooKeeper implements AutoCloseable {
 
         /**
          * Determine whether the watch should be added based on return code.
+         *
          * @param rc the result code of the operation that attempted to add the
-         * watch on the node
+         *           watch on the node
          * @return true if the watch should be added, otw false
          */
         protected boolean shouldAddWatch(int rc) {
@@ -585,7 +582,8 @@ public class ZooKeeper implements AutoCloseable {
         }
     }
 
-    /** Handle the special case of exists watches - they add a watcher
+    /**
+     * Handle the special case of exists watches - they add a watcher
      * even in the case where NONODE result code is returned.
      */
     class ExistsWatchRegistration extends WatchRegistration {
@@ -639,7 +637,7 @@ public class ZooKeeper implements AutoCloseable {
          * Returns whether we are connected to a server (which
          * could possibly be read-only, if this client is allowed
          * to go to read-only mode)
-         * */
+         */
         public boolean isConnected() {
             return this == CONNECTED || this == CONNECTEDREADONLY;
         }
@@ -668,25 +666,19 @@ public class ZooKeeper implements AutoCloseable {
      * connection string. This will run the client commands while interpreting
      * all paths relative to this root (similar to the unix chroot command).
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
-     *            the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     *
-     * @throws IOException
-     *             in cases of network failure
-     * @throws IllegalArgumentException
-     *             if an invalid chroot path is specified
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
+     *                       the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @throws IOException              in cases of network failure
+     * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher)
             throws IOException {
@@ -716,27 +708,21 @@ public class ZooKeeper implements AutoCloseable {
      * connection string. This will run the client commands while interpreting
      * all paths relative to this root (similar to the unix chroot command).
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
-     *            the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param conf
-     *            (added in 3.5.2) passing this conf object gives each client the flexibility of
-     *            configuring properties differently compared to other instances
-     * @throws IOException
-     *             in cases of network failure
-     * @throws IllegalArgumentException
-     *             if an invalid chroot path is specified
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
+     *                       the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param conf           (added in 3.5.2) passing this conf object gives each client the flexibility of
+     *                       configuring properties differently compared to other instances
+     * @throws IOException              in cases of network failure
+     * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
                      ZKClientConfig conf) throws IOException {
@@ -770,35 +756,27 @@ public class ZooKeeper implements AutoCloseable {
      * {@link #ZooKeeper(String, int, Watcher, boolean)} which uses
      * default {@link StaticHostProvider}
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
-     *            the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param canBeReadOnly
-     *            (added in 3.4) whether the created client is allowed to go to
-     *            read-only mode in case of partitioning. Read-only mode
-     *            basically means that if the client can't find any majority
-     *            servers but there's partitioned server it could reach, it
-     *            connects to one in read-only mode, i.e. read requests are
-     *            allowed while write requests are not. It continues seeking for
-     *            majority in the background.
-     * @param aHostProvider
-     *            use this as HostProvider to enable custom behaviour.
-     *
-     * @throws IOException
-     *             in cases of network failure
-     * @throws IllegalArgumentException
-     *             if an invalid chroot path is specified
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
+     *                       the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param canBeReadOnly  (added in 3.4) whether the created client is allowed to go to
+     *                       read-only mode in case of partitioning. Read-only mode
+     *                       basically means that if the client can't find any majority
+     *                       servers but there's partitioned server it could reach, it
+     *                       connects to one in read-only mode, i.e. read requests are
+     *                       allowed while write requests are not. It continues seeking for
+     *                       majority in the background.
+     * @param aHostProvider  use this as HostProvider to enable custom behaviour.
+     * @throws IOException              in cases of network failure
+     * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
                      boolean canBeReadOnly, HostProvider aHostProvider)
@@ -835,37 +813,29 @@ public class ZooKeeper implements AutoCloseable {
      * {@link #ZooKeeper(String, int, Watcher, boolean)} which uses default
      * {@link StaticHostProvider}
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
-     *            the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param canBeReadOnly
-     *            (added in 3.4) whether the created client is allowed to go to
-     *            read-only mode in case of partitioning. Read-only mode
-     *            basically means that if the client can't find any majority
-     *            servers but there's partitioned server it could reach, it
-     *            connects to one in read-only mode, i.e. read requests are
-     *            allowed while write requests are not. It continues seeking for
-     *            majority in the background.
-     * @param aHostProvider
-     *            use this as HostProvider to enable custom behaviour.
-     * @param clientConfig
-     *            (added in 3.5.2) passing this conf object gives each client the flexibility of
-     *            configuring properties differently compared to other instances
-     * @throws IOException
-     *             in cases of network failure
-     * @throws IllegalArgumentException
-     *             if an invalid chroot path is specified
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
+     *                       the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param canBeReadOnly  (added in 3.4) whether the created client is allowed to go to
+     *                       read-only mode in case of partitioning. Read-only mode
+     *                       basically means that if the client can't find any majority
+     *                       servers but there's partitioned server it could reach, it
+     *                       connects to one in read-only mode, i.e. read requests are
+     *                       allowed while write requests are not. It continues seeking for
+     *                       majority in the background.
+     * @param aHostProvider  use this as HostProvider to enable custom behaviour.
+     * @param clientConfig   (added in 3.5.2) passing this conf object gives each client the flexibility of
+     *                       configuring properties differently compared to other instances
+     * @throws IOException              in cases of network failure
+     * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
                      boolean canBeReadOnly, HostProvider aHostProvider,
@@ -877,15 +847,21 @@ public class ZooKeeper implements AutoCloseable {
             clientConfig = new ZKClientConfig();
         }
         this.clientConfig = clientConfig;
+
+        //设置默认的客户端的 Watch 管理器
         watchManager = defaultWatchManager();
         watchManager.defaultWatcher = watcher;
-        ConnectStringParser connectStringParser = new ConnectStringParser(
-                connectString);
+
+        //解析连接字符串
+        ConnectStringParser connectStringParser = new ConnectStringParser(connectString);
         hostProvider = aHostProvider;
 
+        //构建客户端连接 ClientCnxn
         cnxn = createConnection(connectStringParser.getChrootPath(),
                 hostProvider, sessionTimeout, this, watchManager,
                 getClientCnxnSocket(), canBeReadOnly);
+
+        //启动客户端
         cnxn.start();
     }
 
@@ -922,33 +898,26 @@ public class ZooKeeper implements AutoCloseable {
      * all paths relative to this root (similar to the unix chroot command).
      * <p>
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
-     *            the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param canBeReadOnly
-     *            (added in 3.4) whether the created client is allowed to go to
-     *            read-only mode in case of partitioning. Read-only mode
-     *            basically means that if the client can't find any majority
-     *            servers but there's partitioned server it could reach, it
-     *            connects to one in read-only mode, i.e. read requests are
-     *            allowed while write requests are not. It continues seeking for
-     *            majority in the background.
-     *
-     * @throws IOException
-     *             in cases of network failure
-     * @throws IllegalArgumentException
-     *             if an invalid chroot path is specified
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
+     *                       the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param canBeReadOnly  (added in 3.4) whether the created client is allowed to go to
+     *                       read-only mode in case of partitioning. Read-only mode
+     *                       basically means that if the client can't find any majority
+     *                       servers but there's partitioned server it could reach, it
+     *                       connects to one in read-only mode, i.e. read requests are
+     *                       allowed while write requests are not. It continues seeking for
+     *                       majority in the background.
+     * @throws IOException              in cases of network failure
+     * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
                      boolean canBeReadOnly) throws IOException {
@@ -980,35 +949,28 @@ public class ZooKeeper implements AutoCloseable {
      * all paths relative to this root (similar to the unix chroot command).
      * <p>
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
-     *            the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param canBeReadOnly
-     *            (added in 3.4) whether the created client is allowed to go to
-     *            read-only mode in case of partitioning. Read-only mode
-     *            basically means that if the client can't find any majority
-     *            servers but there's partitioned server it could reach, it
-     *            connects to one in read-only mode, i.e. read requests are
-     *            allowed while write requests are not. It continues seeking for
-     *            majority in the background.
-     * @param conf
-     *            (added in 3.5.2) passing this conf object gives each client the flexibility of
-     *            configuring properties differently compared to other instances
-     * @throws IOException
-     *             in cases of network failure
-     * @throws IllegalArgumentException
-     *             if an invalid chroot path is specified
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002" If
+     *                       the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param canBeReadOnly  (added in 3.4) whether the created client is allowed to go to
+     *                       read-only mode in case of partitioning. Read-only mode
+     *                       basically means that if the client can't find any majority
+     *                       servers but there's partitioned server it could reach, it
+     *                       connects to one in read-only mode, i.e. read requests are
+     *                       allowed while write requests are not. It continues seeking for
+     *                       majority in the background.
+     * @param conf           (added in 3.5.2) passing this conf object gives each client the flexibility of
+     *                       configuring properties differently compared to other instances
+     * @throws IOException              in cases of network failure
+     * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
                      boolean canBeReadOnly, ZKClientConfig conf) throws IOException {
@@ -1045,26 +1007,20 @@ public class ZooKeeper implements AutoCloseable {
      * reconnecting, use the other constructor which does not require these
      * parameters.
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
-     *            If the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param sessionId
-     *            specific session id to use if reconnecting
-     * @param sessionPasswd
-     *            password for this session
-     *
-     * @throws IOException in cases of network failure
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
+     *                       If the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param sessionId      specific session id to use if reconnecting
+     * @param sessionPasswd  password for this session
+     * @throws IOException              in cases of network failure
      * @throws IllegalArgumentException if an invalid chroot path is specified
      * @throws IllegalArgumentException for an invalid list of ZooKeeper hosts
      */
@@ -1107,35 +1063,28 @@ public class ZooKeeper implements AutoCloseable {
      * {@link #ZooKeeper(String, int, Watcher, long, byte[], boolean)} which uses
      * default {@link StaticHostProvider}
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
-     *            If the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param sessionId
-     *            specific session id to use if reconnecting
-     * @param sessionPasswd
-     *            password for this session
-     * @param canBeReadOnly
-     *            (added in 3.4) whether the created client is allowed to go to
-     *            read-only mode in case of partitioning. Read-only mode
-     *            basically means that if the client can't find any majority
-     *            servers but there's partitioned server it could reach, it
-     *            connects to one in read-only mode, i.e. read requests are
-     *            allowed while write requests are not. It continues seeking for
-     *            majority in the background.
-     * @param aHostProvider
-     *            use this as HostProvider to enable custom behaviour.
-     * @throws IOException in cases of network failure
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
+     *                       If the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param sessionId      specific session id to use if reconnecting
+     * @param sessionPasswd  password for this session
+     * @param canBeReadOnly  (added in 3.4) whether the created client is allowed to go to
+     *                       read-only mode in case of partitioning. Read-only mode
+     *                       basically means that if the client can't find any majority
+     *                       servers but there's partitioned server it could reach, it
+     *                       connects to one in read-only mode, i.e. read requests are
+     *                       allowed while write requests are not. It continues seeking for
+     *                       majority in the background.
+     * @param aHostProvider  use this as HostProvider to enable custom behaviour.
+     * @throws IOException              in cases of network failure
      * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
@@ -1178,40 +1127,31 @@ public class ZooKeeper implements AutoCloseable {
      * {@link #ZooKeeper(String, int, Watcher, long, byte[], boolean)} which uses
      * default {@link StaticHostProvider}
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
-     *            If the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param sessionId
-     *            specific session id to use if reconnecting
-     * @param sessionPasswd
-     *            password for this session
-     * @param canBeReadOnly
-     *            (added in 3.4) whether the created client is allowed to go to
-     *            read-only mode in case of partitioning. Read-only mode
-     *            basically means that if the client can't find any majority
-     *            servers but there's partitioned server it could reach, it
-     *            connects to one in read-only mode, i.e. read requests are
-     *            allowed while write requests are not. It continues seeking for
-     *            majority in the background.
-     * @param aHostProvider
-     *            use this as HostProvider to enable custom behaviour.
-     * @param clientConfig
-     *            (added in 3.5.2) passing this conf object gives each client the flexibility of
-     *            configuring properties differently compared to other instances
-     * @throws IOException in cases of network failure
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
+     *                       If the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param sessionId      specific session id to use if reconnecting
+     * @param sessionPasswd  password for this session
+     * @param canBeReadOnly  (added in 3.4) whether the created client is allowed to go to
+     *                       read-only mode in case of partitioning. Read-only mode
+     *                       basically means that if the client can't find any majority
+     *                       servers but there's partitioned server it could reach, it
+     *                       connects to one in read-only mode, i.e. read requests are
+     *                       allowed while write requests are not. It continues seeking for
+     *                       majority in the background.
+     * @param aHostProvider  use this as HostProvider to enable custom behaviour.
+     * @param clientConfig   (added in 3.5.2) passing this conf object gives each client the flexibility of
+     *                       configuring properties differently compared to other instances
+     * @throws IOException              in cases of network failure
      * @throws IllegalArgumentException if an invalid chroot path is specified
-     *
      * @since 3.5.5
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
@@ -1274,33 +1214,27 @@ public class ZooKeeper implements AutoCloseable {
      * This constructor uses a StaticHostProvider; there is another one
      * to enable custom behaviour.
      *
-     * @param connectString
-     *            comma separated host:port pairs, each corresponding to a zk
-     *            server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
-     *            If the optional chroot suffix is used the example would look
-     *            like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
-     *            where the client would be rooted at "/app/a" and all paths
-     *            would be relative to this root - ie getting/setting/etc...
-     *            "/foo/bar" would result in operations being run on
-     *            "/app/a/foo/bar" (from the server perspective).
-     * @param sessionTimeout
-     *            session timeout in milliseconds
-     * @param watcher
-     *            a watcher object which will be notified of state changes, may
-     *            also be notified for node events
-     * @param sessionId
-     *            specific session id to use if reconnecting
-     * @param sessionPasswd
-     *            password for this session
-     * @param canBeReadOnly
-     *            (added in 3.4) whether the created client is allowed to go to
-     *            read-only mode in case of partitioning. Read-only mode
-     *            basically means that if the client can't find any majority
-     *            servers but there's partitioned server it could reach, it
-     *            connects to one in read-only mode, i.e. read requests are
-     *            allowed while write requests are not. It continues seeking for
-     *            majority in the background.
-     * @throws IOException in cases of network failure
+     * @param connectString  comma separated host:port pairs, each corresponding to a zk
+     *                       server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
+     *                       If the optional chroot suffix is used the example would look
+     *                       like: "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002/app/a"
+     *                       where the client would be rooted at "/app/a" and all paths
+     *                       would be relative to this root - ie getting/setting/etc...
+     *                       "/foo/bar" would result in operations being run on
+     *                       "/app/a/foo/bar" (from the server perspective).
+     * @param sessionTimeout session timeout in milliseconds
+     * @param watcher        a watcher object which will be notified of state changes, may
+     *                       also be notified for node events
+     * @param sessionId      specific session id to use if reconnecting
+     * @param sessionPasswd  password for this session
+     * @param canBeReadOnly  (added in 3.4) whether the created client is allowed to go to
+     *                       read-only mode in case of partitioning. Read-only mode
+     *                       basically means that if the client can't find any majority
+     *                       servers but there's partitioned server it could reach, it
+     *                       connects to one in read-only mode, i.e. read requests are
+     *                       allowed while write requests are not. It continues seeking for
+     *                       majority in the background.
+     * @throws IOException              in cases of network failure
      * @throws IllegalArgumentException if an invalid chroot path is specified
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
@@ -1330,7 +1264,7 @@ public class ZooKeeper implements AutoCloseable {
      * The session id for this ZooKeeper client instance. The value returned is
      * not valid until the client connects to a server and may change after a
      * re-connect.
-     *
+     * <p>
      * This method is NOT thread safe
      *
      * @return current session id
@@ -1343,7 +1277,7 @@ public class ZooKeeper implements AutoCloseable {
      * The session password for this ZooKeeper client instance. The value
      * returned is not valid until the client connects to a server and may
      * change after a re-connect.
-     *
+     * <p>
      * This method is NOT thread safe
      *
      * @return current session password
@@ -1356,7 +1290,7 @@ public class ZooKeeper implements AutoCloseable {
      * The negotiated session timeout for this ZooKeeper client instance. The
      * value returned is not valid until the client connects to a server and
      * may change after a re-connect.
-     *
+     * <p>
      * This method is NOT thread safe
      *
      * @return current session timeout
@@ -1367,7 +1301,7 @@ public class ZooKeeper implements AutoCloseable {
 
     /**
      * Add the specified scheme:auth information to this connection.
-     *
+     * <p>
      * This method is NOT thread safe
      *
      * @param scheme
@@ -1431,10 +1365,9 @@ public class ZooKeeper implements AutoCloseable {
      * This method will wait for internal resources to be released.
      *
      * @param waitForShutdownTimeoutMs timeout (in milliseconds) to wait for resources to be released.
-     * Use zero or a negative value to skip the wait
-     * @throws InterruptedException
+     *                                 Use zero or a negative value to skip the wait
      * @return true if waitForShutdownTimeout is greater than zero and all of the resources have been released
-     *
+     * @throws InterruptedException
      * @since 3.5.4
      */
     public boolean close(int waitForShutdownTimeoutMs) throws InterruptedException {
@@ -1446,6 +1379,7 @@ public class ZooKeeper implements AutoCloseable {
      * Prepend the chroot to the client path (if present). The expectation of
      * this function is that the client path has been validated before this
      * function is called
+     *
      * @param clientPath path to the node
      * @return server view of the path (chroot prepended to client path)
      */
@@ -1501,20 +1435,16 @@ public class ZooKeeper implements AutoCloseable {
      * The maximum allowable size of the data array is 1 MB (1,048,576 bytes).
      * Arrays larger than this will cause a KeeperExecption to be thrown.
      *
-     * @param path
-     *                the path for the node
-     * @param data
-     *                the initial data for the node
-     * @param acl
-     *                the acl for the node
-     * @param createMode
-     *                specifying whether the node to be created is ephemeral
-     *                and/or sequential
+     * @param path       the path for the node
+     * @param data       the initial data for the node
+     * @param acl        the acl for the node
+     * @param createMode specifying whether the node to be created is ephemeral
+     *                   and/or sequential
      * @return the actual path of the created node
-     * @throws KeeperException if the server returns a non-zero error code
+     * @throws KeeperException                     if the server returns a non-zero error code
      * @throws KeeperException.InvalidACLException if the ACL is invalid, null, or empty
-     * @throws InterruptedException if the transaction is interrupted
-     * @throws IllegalArgumentException if an invalid path is specified
+     * @throws InterruptedException                if the transaction is interrupted
+     * @throws IllegalArgumentException            if an invalid path is specified
      */
     public String create(final String path, byte data[], List<ACL> acl,
                          CreateMode createMode)
@@ -1525,8 +1455,11 @@ public class ZooKeeper implements AutoCloseable {
 
         final String serverPath = prependChroot(clientPath);
 
+        //构建请求头
         RequestHeader h = new RequestHeader();
         h.setType(createMode.isContainer() ? ZooDefs.OpCode.createContainer : ZooDefs.OpCode.create);
+
+        //构建创建请求
         CreateRequest request = new CreateRequest();
         CreateResponse response = new CreateResponse();
         request.setData(data);
@@ -1536,6 +1469,8 @@ public class ZooKeeper implements AutoCloseable {
             throw new KeeperException.InvalidACLException();
         }
         request.setAcl(acl);
+
+        //提交创建节点的请求
         ReplyHeader r = cnxn.submitRequest(h, request, response, null);
         if (r.getErr() != 0) {
             throw KeeperException.create(KeeperException.Code.get(r.getErr()),
@@ -1588,22 +1523,17 @@ public class ZooKeeper implements AutoCloseable {
      * The maximum allowable size of the data array is 1 MB (1,048,576 bytes).
      * Arrays larger than this will cause a KeeperExecption to be thrown.
      *
-     * @param path
-     *                the path for the node
-     * @param data
-     *                the initial data for the node
-     * @param acl
-     *                the acl for the node
-     * @param createMode
-     *                specifying whether the node to be created is ephemeral
-     *                and/or sequential
-     * @param stat
-     *                The output Stat object.
+     * @param path       the path for the node
+     * @param data       the initial data for the node
+     * @param acl        the acl for the node
+     * @param createMode specifying whether the node to be created is ephemeral
+     *                   and/or sequential
+     * @param stat       The output Stat object.
      * @return the actual path of the created node
-     * @throws KeeperException if the server returns a non-zero error code
+     * @throws KeeperException                     if the server returns a non-zero error code
      * @throws KeeperException.InvalidACLException if the ACL is invalid, null, or empty
-     * @throws InterruptedException if the transaction is interrupted
-     * @throws IllegalArgumentException if an invalid path is specified
+     * @throws InterruptedException                if the transaction is interrupted
+     * @throws IllegalArgumentException            if an invalid path is specified
      */
     public String create(final String path, byte data[], List<ACL> acl,
                          CreateMode createMode, Stat stat)
@@ -1755,13 +1685,11 @@ public class ZooKeeper implements AutoCloseable {
      * of the given path left by exists API calls, and the watches on the parent
      * node left by getChildren API calls.
      *
-     * @param path
-     *                the path of the node to be deleted.
-     * @param version
-     *                the expected node version.
-     * @throws InterruptedException IF the server transaction is interrupted
-     * @throws KeeperException If the server signals an error with a non-zero
-     *   return code.
+     * @param path    the path of the node to be deleted.
+     * @param version the expected node version.
+     * @throws InterruptedException     IF the server transaction is interrupted
+     * @throws KeeperException          If the server signals an error with a non-zero
+     *                                  return code.
      * @throws IllegalArgumentException if an invalid path is specified
      */
     public void delete(final String path, int version)
@@ -1809,17 +1737,16 @@ public class ZooKeeper implements AutoCloseable {
      * thrown.
      *
      * @param ops An iterable that contains the operations to be done.
-     * These should be created using the factory methods on {@link Op}.
+     *            These should be created using the factory methods on {@link Op}.
      * @return A list of results, one for each input Op, the order of
      * which exactly matches the order of the <code>ops</code> input
      * operations.
-     * @throws InterruptedException If the operation was interrupted.
-     * The operation may or may not have succeeded, but will not have
-     * partially succeeded if this exception is thrown.
-     * @throws KeeperException If the operation could not be completed
-     * due to some error in doing one of the specified ops.
+     * @throws InterruptedException     If the operation was interrupted.
+     *                                  The operation may or may not have succeeded, but will not have
+     *                                  partially succeeded if this exception is thrown.
+     * @throws KeeperException          If the operation could not be completed
+     *                                  due to some error in doing one of the specified ops.
      * @throws IllegalArgumentException if an invalid path is specified
-     *
      * @since 3.4.0
      */
     public List<OpResult> multi(Iterable<Op> ops) throws InterruptedException, KeeperException {
@@ -1934,9 +1861,8 @@ public class ZooKeeper implements AutoCloseable {
      * which provides a builder object that can be used to construct
      * and commit an atomic set of operations.
      *
-     * @since 3.4.0
-     *
      * @return a Transaction builder object
+     * @since 3.4.0
      */
     public Transaction transaction() {
         return new Transaction(this);
@@ -1983,12 +1909,12 @@ public class ZooKeeper implements AutoCloseable {
      * triggered by a successful operation that creates/delete the node or sets
      * the data on the node.
      *
-     * @param path the node path
+     * @param path    the node path
      * @param watcher explicit watcher
      * @return the stat of the node of the given path; return null if no such a
-     *         node exists.
-     * @throws KeeperException If the server signals an error
-     * @throws InterruptedException If the server transaction is interrupted.
+     * node exists.
+     * @throws KeeperException          If the server signals an error
+     * @throws InterruptedException     If the server transaction is interrupted.
      * @throws IllegalArgumentException if an invalid path is specified
      */
     public Stat exists(final String path, Watcher watcher)
@@ -2031,13 +1957,11 @@ public class ZooKeeper implements AutoCloseable {
      * triggered by a successful operation that creates/delete the node or sets
      * the data on the node.
      *
-     * @param path
-     *                the node path
-     * @param watch
-     *                whether need to watch this node
+     * @param path  the node path
+     * @param watch whether need to watch this node
      * @return the stat of the node of the given path; return null if no such a
-     *         node exists.
-     * @throws KeeperException If the server signals an error
+     * node exists.
+     * @throws KeeperException      If the server signals an error
      * @throws InterruptedException If the server transaction is interrupted.
      */
     public Stat exists(String path, boolean watch) throws KeeperException,
@@ -2093,12 +2017,12 @@ public class ZooKeeper implements AutoCloseable {
      * A KeeperException with error code KeeperException.NoNode will be thrown
      * if no node with the given path exists.
      *
-     * @param path the given path
+     * @param path    the given path
      * @param watcher explicit watcher
-     * @param stat the stat of the node
+     * @param stat    the stat of the node
      * @return the data of the node
-     * @throws KeeperException If the server signals an error with a non-zero error code
-     * @throws InterruptedException If the server transaction is interrupted.
+     * @throws KeeperException          If the server signals an error with a non-zero error code
+     * @throws InterruptedException     If the server transaction is interrupted.
      * @throws IllegalArgumentException if an invalid path is specified
      */
     public byte[] getData(final String path, Watcher watcher, Stat stat)
@@ -2142,11 +2066,11 @@ public class ZooKeeper implements AutoCloseable {
      * A KeeperException with error code KeeperException.NoNode will be thrown
      * if no node with the given path exists.
      *
-     * @param path the given path
+     * @param path  the given path
      * @param watch whether need to watch this node
-     * @param stat the stat of the node
+     * @param stat  the stat of the node
      * @return the data of the node
-     * @throws KeeperException If the server signals an error with a non-zero error code
+     * @throws KeeperException      If the server signals an error with a non-zero error code
      * @throws InterruptedException If the server transaction is interrupted.
      */
     public byte[] getData(String path, boolean watch, Stat stat)
@@ -2203,9 +2127,9 @@ public class ZooKeeper implements AutoCloseable {
      * if the configuration node doesn't exists.
      *
      * @param watcher explicit watcher
-     * @param stat the stat of the configuration node ZooDefs.CONFIG_NODE
+     * @param stat    the stat of the configuration node ZooDefs.CONFIG_NODE
      * @return configuration data stored in ZooDefs.CONFIG_NODE
-     * @throws KeeperException If the server signals an error with a non-zero error code
+     * @throws KeeperException      If the server signals an error with a non-zero error code
      * @throws InterruptedException If the server transaction is interrupted.
      */
     public byte[] getConfig(Watcher watcher, Stat stat)
@@ -2273,9 +2197,9 @@ public class ZooKeeper implements AutoCloseable {
      * if no node with the given path exists.
      *
      * @param watch whether need to watch this node
-     * @param stat the stat of the configuration node ZooDefs.CONFIG_NODE
+     * @param stat  the stat of the configuration node ZooDefs.CONFIG_NODE
      * @return configuration data stored in ZooDefs.CONFIG_NODE
-     * @throws KeeperException If the server signals an error with a non-zero error code
+     * @throws KeeperException      If the server signals an error with a non-zero error code
      * @throws InterruptedException If the server transaction is interrupted.
      */
     public byte[] getConfig(boolean watch, Stat stat)
@@ -2284,7 +2208,7 @@ public class ZooKeeper implements AutoCloseable {
     }
 
     /**
-     * The Asynchronous version of getConfig. 
+     * The Asynchronous version of getConfig.
      *
      * @see #getData(String, boolean, Stat)
      */
@@ -2344,15 +2268,12 @@ public class ZooKeeper implements AutoCloseable {
      * The maximum allowable size of the data array is 1 MB (1,048,576 bytes).
      * Arrays larger than this will cause a KeeperException to be thrown.
      *
-     * @param path
-     *                the path of the node
-     * @param data
-     *                the data to set
-     * @param version
-     *                the expected matching version
+     * @param path    the path of the node
+     * @param data    the data to set
+     * @param version the expected matching version
      * @return the state of the node
-     * @throws InterruptedException If the server transaction is interrupted.
-     * @throws KeeperException If the server signals an error with a non-zero error code.
+     * @throws InterruptedException     If the server transaction is interrupted.
+     * @throws KeeperException          If the server signals an error with a non-zero error code.
      * @throws IllegalArgumentException if an invalid path is specified
      */
     public Stat setData(final String path, byte data[], int version)
@@ -2406,14 +2327,12 @@ public class ZooKeeper implements AutoCloseable {
      * A KeeperException with error code KeeperException.NoNode will be thrown
      * if no node with the given path exists.
      *
-     * @param path
-     *                the given path for the node
-     * @param stat
-     *                the stat of the node will be copied to this parameter if
-     *                not null.
+     * @param path the given path for the node
+     * @param stat the stat of the node will be copied to this parameter if
+     *             not null.
      * @return the ACL array of the given node.
-     * @throws InterruptedException If the server transaction is interrupted.
-     * @throws KeeperException If the server signals an error with a non-zero error code.
+     * @throws InterruptedException     If the server transaction is interrupted.
+     * @throws KeeperException          If the server signals an error with a non-zero error code.
      * @throws IllegalArgumentException if an invalid path is specified
      */
     public List<ACL> getACL(final String path, Stat stat)
@@ -2471,14 +2390,14 @@ public class ZooKeeper implements AutoCloseable {
      * A KeeperException with error code KeeperException.BadVersion will be
      * thrown if the given aclVersion does not match the node's aclVersion.
      *
-     * @param path the given path for the node
-     * @param acl the given acl for the node
+     * @param path       the given path for the node
+     * @param acl        the given acl for the node
      * @param aclVersion the given acl version of the node
      * @return the stat of the node.
-     * @throws InterruptedException If the server transaction is interrupted.
-     * @throws KeeperException If the server signals an error with a non-zero error code.
+     * @throws InterruptedException                                     If the server transaction is interrupted.
+     * @throws KeeperException                                          If the server signals an error with a non-zero error code.
      * @throws org.apache.zookeeper.KeeperException.InvalidACLException If the acl is invalide.
-     * @throws IllegalArgumentException if an invalid path is specified
+     * @throws IllegalArgumentException                                 if an invalid path is specified
      */
     public Stat setACL(final String path, List<ACL> acl, int aclVersion)
             throws KeeperException, InterruptedException {
@@ -2545,8 +2464,8 @@ public class ZooKeeper implements AutoCloseable {
      * @param path
      * @param watcher explicit watcher
      * @return an unordered array of children of the node with the given path
-     * @throws InterruptedException If the server transaction is interrupted.
-     * @throws KeeperException If the server signals an error with a non-zero error code.
+     * @throws InterruptedException     If the server transaction is interrupted.
+     * @throws KeeperException          If the server signals an error with a non-zero error code.
      * @throws IllegalArgumentException if an invalid path is specified
      */
     public List<String> getChildren(final String path, Watcher watcher)
@@ -2594,7 +2513,7 @@ public class ZooKeeper implements AutoCloseable {
      * @param watch
      * @return an unordered array of children of the node with the given path
      * @throws InterruptedException If the server transaction is interrupted.
-     * @throws KeeperException If the server signals an error with a non-zero error code.
+     * @throws KeeperException      If the server signals an error with a non-zero error code.
      */
     public List<String> getChildren(String path, boolean watch)
             throws KeeperException, InterruptedException {
@@ -2653,15 +2572,14 @@ public class ZooKeeper implements AutoCloseable {
      * A KeeperException with error code KeeperException.NoNode will be thrown
      * if no node with the given path exists.
      *
-     * @since 3.3.0
-     *
      * @param path
      * @param watcher explicit watcher
-     * @param stat stat of the znode designated by path
+     * @param stat    stat of the znode designated by path
      * @return an unordered array of children of the node with the given path
-     * @throws InterruptedException If the server transaction is interrupted.
-     * @throws KeeperException If the server signals an error with a non-zero error code.
+     * @throws InterruptedException     If the server transaction is interrupted.
+     * @throws KeeperException          If the server signals an error with a non-zero error code.
      * @throws IllegalArgumentException if an invalid path is specified
+     * @since 3.3.0
      */
     public List<String> getChildren(final String path, Watcher watcher,
                                     Stat stat)
@@ -2708,15 +2626,14 @@ public class ZooKeeper implements AutoCloseable {
      * A KeeperException with error code KeeperException.NoNode will be thrown
      * if no node with the given path exists.
      *
-     * @since 3.3.0
-     *
      * @param path
      * @param watch
-     * @param stat stat of the znode designated by path
+     * @param stat  stat of the znode designated by path
      * @return an unordered array of children of the node with the given path
      * @throws InterruptedException If the server transaction is interrupted.
-     * @throws KeeperException If the server signals an error with a non-zero
-     *  error code.
+     * @throws KeeperException      If the server signals an error with a non-zero
+     *                              error code.
+     * @since 3.3.0
      */
     public List<String> getChildren(String path, boolean watch, Stat stat)
             throws KeeperException, InterruptedException {
@@ -2727,9 +2644,8 @@ public class ZooKeeper implements AutoCloseable {
     /**
      * The asynchronous version of getChildren.
      *
-     * @since 3.3.0
-     *
      * @see #getChildren(String, Watcher, Stat)
+     * @since 3.3.0
      */
     public void getChildren(final String path, Watcher watcher,
                             Children2Callback cb, Object ctx) {
@@ -2757,9 +2673,8 @@ public class ZooKeeper implements AutoCloseable {
     /**
      * The asynchronous version of getChildren.
      *
-     * @since 3.3.0
-     *
      * @see #getChildren(String, boolean, Stat)
+     * @since 3.3.0
      */
     public void getChildren(String path, boolean watch, Children2Callback cb,
                             Object ctx) {
@@ -2768,9 +2683,10 @@ public class ZooKeeper implements AutoCloseable {
 
     /**
      * Asynchronous sync. Flushes channel between process and leader.
+     *
      * @param path
-     * @param cb a handler for the callback
-     * @param ctx context to be provided to the callback
+     * @param cb   a handler for the callback
+     * @param ctx  context to be provided to the callback
      * @throws IllegalArgumentException if an invalid path is specified
      */
     public void sync(final String path, VoidCallback cb, Object ctx) {
@@ -2797,28 +2713,19 @@ public class ZooKeeper implements AutoCloseable {
      * removed watcher won't be triggered.
      * </p>
      *
-     * @param path
-     *            - the path of the node
-     * @param watcher
-     *            - a concrete watcher
-     * @param watcherType
-     *            - the type of watcher to be removed
-     * @param local
-     *            - whether the watcher can be removed locally when there is no
-     *            server connection
-     * @throws InterruptedException
-     *             if the server transaction is interrupted.
-     * @throws KeeperException.NoWatcherException
-     *             if no watcher exists that match the specified parameters
-     * @throws KeeperException
-     *             if the server signals an error with a non-zero error code.
-     * @throws IllegalArgumentException
-     *             if any of the following is true:
-     *             <ul>
-     *             <li> {@code path} is invalid
-     *             <li> {@code watcher} is null
-     *             </ul>
-     *
+     * @param path        - the path of the node
+     * @param watcher     - a concrete watcher
+     * @param watcherType - the type of watcher to be removed
+     * @param local       - whether the watcher can be removed locally when there is no
+     *                    server connection
+     * @throws InterruptedException               if the server transaction is interrupted.
+     * @throws KeeperException.NoWatcherException if no watcher exists that match the specified parameters
+     * @throws KeeperException                    if the server signals an error with a non-zero error code.
+     * @throws IllegalArgumentException           if any of the following is true:
+     *                                            <ul>
+     *                                            <li> {@code path} is invalid
+     *                                            <li> {@code watcher} is null
+     *                                            </ul>
      * @since 3.5.0
      */
     public void removeWatches(String path, Watcher watcher,
@@ -2850,22 +2757,14 @@ public class ZooKeeper implements AutoCloseable {
      * triggered.
      * </p>
      *
-     * @param path
-     *            - the path of the node
-     * @param watcherType
-     *            - the type of watcher to be removed
-     * @param local
-     *            - whether watches can be removed locally when there is no
-     *            server connection
-     * @throws InterruptedException
-     *             if the server transaction is interrupted.
-     * @throws KeeperException.NoWatcherException
-     *             if no watcher exists that match the specified parameters
-     * @throws KeeperException
-     *             if the server signals an error with a non-zero error code.
-     * @throws IllegalArgumentException
-     *             if an invalid {@code path} is specified
-     *
+     * @param path        - the path of the node
+     * @param watcherType - the type of watcher to be removed
+     * @param local       - whether watches can be removed locally when there is no
+     *                    server connection
+     * @throws InterruptedException               if the server transaction is interrupted.
+     * @throws KeeperException.NoWatcherException if no watcher exists that match the specified parameters
+     * @throws KeeperException                    if the server signals an error with a non-zero error code.
+     * @throws IllegalArgumentException           if an invalid {@code path} is specified
      * @since 3.5.0
      */
     public void removeAllWatches(String path, WatcherType watcherType,
@@ -2962,7 +2861,7 @@ public class ZooKeeper implements AutoCloseable {
     /**
      * String representation of this ZooKeeper client. Suitable for things
      * like logging.
-     *
+     * <p>
      * Do NOT count on the format of this string, it may change without
      * warning.
      *
@@ -2988,10 +2887,9 @@ public class ZooKeeper implements AutoCloseable {
      * Wait up to wait milliseconds for the underlying threads to shutdown.
      * THIS METHOD IS EXPECTED TO BE USED FOR TESTING ONLY!!!
      *
-     * @since 3.3.0
-     *
      * @param wait max wait in milliseconds
      * @return true iff all threads are shutdown, otw false
+     * @since 3.3.0
      */
     protected boolean testableWaitForShutdown(int wait)
             throws InterruptedException {
@@ -3009,10 +2907,9 @@ public class ZooKeeper implements AutoCloseable {
      * disconnection/reconnection correctly.
      * THIS METHOD IS EXPECTED TO BE USED FOR TESTING ONLY!!!
      *
-     * @since 3.3.0
-     *
      * @return ip address of the remote side of the connection or null if
-     *         not connected
+     * not connected
+     * @since 3.3.0
      */
     protected SocketAddress testableRemoteSocketAddress() {
         return cnxn.sendThread.getClientCnxnSocket().getRemoteSocketAddress();
@@ -3022,10 +2919,9 @@ public class ZooKeeper implements AutoCloseable {
      * Returns the local address to which the socket is bound.
      * THIS METHOD IS EXPECTED TO BE USED FOR TESTING ONLY!!!
      *
-     * @since 3.3.0
-     *
      * @return ip address of the remote side of the connection or null if
-     *         not connected
+     * not connected
+     * @since 3.3.0
      */
     protected SocketAddress testableLocalSocketAddress() {
         return cnxn.sendThread.getClientCnxnSocket().getLocalSocketAddress();
