@@ -128,8 +128,7 @@ public abstract class ServerCnxnFactory {
      * 设置 客户端和服务端的通信框架，支持 NIO、Netty, 默认 NIO
      */
     static public ServerCnxnFactory createFactory() throws IOException {
-        String serverCnxnFactoryName =
-                System.getProperty(ZOOKEEPER_SERVER_CNXN_FACTORY);
+        String serverCnxnFactoryName = System.getProperty(ZOOKEEPER_SERVER_CNXN_FACTORY);
         if (serverCnxnFactoryName == null) {
             serverCnxnFactoryName = NIOServerCnxnFactory.class.getName();
         }

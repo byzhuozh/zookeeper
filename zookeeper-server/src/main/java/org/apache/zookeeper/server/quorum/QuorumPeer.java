@@ -1087,6 +1087,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                 if (listener != null) {
                     listener.start();
                     FastLeaderElection fle = new FastLeaderElection(this, qcm);
+                    //启动选举
                     fle.start();
                     le = fle;
                 } else {
