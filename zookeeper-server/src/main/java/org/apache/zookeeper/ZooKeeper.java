@@ -2091,6 +2091,7 @@ public class ZooKeeper implements AutoCloseable {
         // the watch contains the un-chroot path
         WatchRegistration wcb = null;
         if (watcher != null) {
+            // watch 的注册对象 DataWatchRegistration
             wcb = new DataWatchRegistration(watcher, clientPath);
         }
 
