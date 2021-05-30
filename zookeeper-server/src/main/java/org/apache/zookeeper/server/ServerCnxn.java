@@ -70,7 +70,6 @@ public abstract class ServerCnxn implements Stats, Watcher {
 
     public void sendResponse(ReplyHeader h, Record r, String tag) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        // Make space for length
         BinaryOutputArchive bos = BinaryOutputArchive.getArchive(baos);
         try {
             baos.write(fourBytes);

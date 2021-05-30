@@ -882,34 +882,44 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
 
     @Override
     public synchronized void start() {
+        //校验集群中配置的客户端标识 是否包含当前的客户端标识 myId
         if (!getView().containsKey(myid)) {
             throw new RuntimeException("My id " + myid + " not in the peer list");
         }
+
+        //加载数据
         loadDataBase();
+
+        //开启NIO线程，执行run方法接收来自客户端的请求
         startServerCnxnFactory();
+
         try {
             adminServer.start();
         } catch (AdminServerException e) {
             LOG.warn("Problem starting AdminServer", e);
             System.out.println(e);
         }
+
+        //选举算法选择，并初始化 QuorumCxnManager
         startLeaderElection();
+
+        //开始选举
         super.start();
     }
 
     private void loadDataBase() {
         try {
+            //从当前配置的snapDir文件目录下加载
             zkDb.loadDataBase();
 
-            // load the epochs
+            //从最新的zxid恢复epoch变量，zxid64位，前32位是epoch值，后32位是zxid
             long lastProcessedZxid = zkDb.getDataTree().lastProcessedZxid;
             long epochOfZxid = ZxidUtils.getEpochFromZxid(lastProcessedZxid);
+
             try {
+                //获取epoch属性
                 currentEpoch = readLongFromFile(CURRENT_EPOCH_FILENAME);
             } catch (FileNotFoundException e) {
-                // pick a reasonable epoch number
-                // this should only happen once when moving to a
-                // new code version
                 currentEpoch = epochOfZxid;
                 LOG.info(CURRENT_EPOCH_FILENAME
                                 + " not found! Creating with a reasonable default of {}. This should only happen when you are upgrading your installation",
@@ -950,6 +960,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     synchronized public void startLeaderElection() {
         try {
             if (getPeerState() == ServerState.LOOKING) {
+                //初始化自己的内部选票（当前的id，事务id，当前的选举轮次
                 currentVote = new Vote(myid, getLastLoggedZxid(), getCurrentEpoch());
             }
         } catch (IOException e) {
@@ -958,9 +969,6 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             throw re;
         }
 
-        // if (!getView().containsKey(myid)) {
-        //      throw new RuntimeException("My id " + myid + " not in the peer list");
-        //}
         if (electionType == 0) {
             try {
                 udpSocket = new DatagramSocket(getQuorumAddress().getPort());
@@ -970,6 +978,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                 throw new RuntimeException(e);
             }
         }
+
+        //选举算法选择
         this.electionAlg = createElectionAlgorithm(electionType);
     }
 
@@ -1065,7 +1075,6 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     protected Election createElectionAlgorithm(int electionAlgorithm) {
         Election le = null;
 
-        //TODO: use a factory rather than a switch
         switch (electionAlgorithm) {
             case 0:
                 le = new LeaderElection(this);
@@ -1083,12 +1092,16 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                     LOG.warn("Clobbering already-set QuorumCnxManager (restarting leader election?)");
                     oldQcm.halt();
                 }
+
                 QuorumCnxManager.Listener listener = qcm.listener;
                 if (listener != null) {
+                    //监听接收，来自集群中其他节点的请求连接
                     listener.start();
+
                     FastLeaderElection fle = new FastLeaderElection(this, qcm);
                     //启动选举
                     fle.start();
+
                     le = fle;
                 } else {
                     LOG.error("Null listener when initializing cnx manager");
@@ -1178,16 +1191,9 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                         if (Boolean.getBoolean("readonlymode.enabled")) {
                             LOG.info("Attempting to start ReadOnlyZooKeeperServer");
 
-                            // Create read-only server but don't start it immediately
                             final ReadOnlyZooKeeperServer roZk =
                                     new ReadOnlyZooKeeperServer(logFactory, this, this.zkDb);
 
-                            // Instead of starting roZk immediately, wait some grace
-                            // period before we decide we're partitioned.
-                            //
-                            // Thread is used here because otherwise it would require
-                            // changes in each of election strategy classes which is
-                            // unnecessary code coupling.
                             Thread roZkMgr = new Thread() {
                                 public void run() {
                                     try {
@@ -1230,6 +1236,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                                     shuttingDownLE = false;
                                     startLeaderElection();
                                 }
+
+                                //选举算法开始选举
                                 setCurrentVote(makeLEStrategy().lookForLeader());
                             } catch (Exception e) {
                                 LOG.warn("Unexpected exception", e);
@@ -1383,11 +1391,9 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     }
 
     public synchronized Set<Long> getCurrentAndNextConfigVoters() {
-        Set<Long> voterIds = new HashSet<Long>(getQuorumVerifier()
-                .getVotingMembers().keySet());
+        Set<Long> voterIds = new HashSet<Long>(getQuorumVerifier().getVotingMembers().keySet());
         if (getLastSeenQuorumVerifier() != null) {
-            voterIds.addAll(getLastSeenQuorumVerifier().getVotingMembers()
-                    .keySet());
+            voterIds.addAll(getLastSeenQuorumVerifier().getVotingMembers().keySet());
         }
         return voterIds;
     }

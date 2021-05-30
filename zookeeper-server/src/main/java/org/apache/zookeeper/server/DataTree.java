@@ -630,6 +630,7 @@ public class DataTree {
             this.updateBytes(lastPrefix, (data == null ? 0 : data.length)
                     - (lastdata == null ? 0 : lastdata.length));
         }
+        //触发数据变更事件
         dataWatches.triggerWatch(path, EventType.NodeDataChanged);
         return s;
     }
@@ -865,9 +866,7 @@ public class DataTree {
                 case OpCode.setData:
                     SetDataTxn setDataTxn = (SetDataTxn) txn;
                     rc.path = setDataTxn.getPath();
-                    rc.stat = setData(setDataTxn.getPath(), setDataTxn
-                            .getData(), setDataTxn.getVersion(), header
-                            .getZxid(), header.getTime());
+                    rc.stat = setData(setDataTxn.getPath(), setDataTxn.getData(), setDataTxn.getVersion(), header.getZxid(), header.getTime());
                     break;
                 case OpCode.setACL:
                     SetACLTxn setACLTxn = (SetACLTxn) txn;

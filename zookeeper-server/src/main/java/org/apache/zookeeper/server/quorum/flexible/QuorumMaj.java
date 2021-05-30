@@ -34,8 +34,11 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
  * 
  */
 public class QuorumMaj implements QuorumVerifier {
+    //集群全部成员
     private Map<Long, QuorumServer> allMembers = new HashMap<Long, QuorumServer>();
+    //集群中参与投票的成员
     private HashMap<Long, QuorumServer> votingMembers = new HashMap<Long, QuorumServer>();
+    //集群中观察者成员
     private HashMap<Long, QuorumServer> observingMembers = new HashMap<Long, QuorumServer>();
     private long version = 0;
     private int half;

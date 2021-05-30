@@ -24,6 +24,7 @@ import org.apache.yetus.audience.InterfaceAudience;
 
 @InterfaceAudience.Public
 public class ReplyHeader implements Record {
+    //-1 表示通知类型的响应
     private int xid;
     private long zxid;
     private int err;

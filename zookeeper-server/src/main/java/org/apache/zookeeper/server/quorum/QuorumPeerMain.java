@@ -108,6 +108,7 @@ public class QuorumPeerMain {
             throws ConfigException, IOException, AdminServerException {
         QuorumPeerConfig config = new QuorumPeerConfig();
         if (args.length == 1) {
+            //解析配置文件中的相关参数并加载到内存，如zoo.cfg文件
             config.parse(args[0]);
         }
 
@@ -144,6 +145,7 @@ public class QuorumPeerMain {
 
             if (config.getClientPortAddress() != null) {
                 //默认实现： NIOServerCnxnFactory
+                //对client提供读写的server，一般是2181端口
                 cnxnFactory = ServerCnxnFactory.createFactory();
                 cnxnFactory.configure(config.getClientPortAddress(), config.getMaxClientCnxns(), false);
             }
@@ -158,21 +160,22 @@ public class QuorumPeerMain {
             quorumPeer.enableLocalSessions(config.areLocalSessionsEnabled());
             quorumPeer.enableLocalSessionsUpgrading(config.isLocalSessionsUpgradingEnabled());
             //quorumPeer.setQuorumPeers(config.getAllMembers());
-            quorumPeer.setElectionType(config.getElectionAlg());
-            quorumPeer.setMyid(config.getServerId());
-            quorumPeer.setTickTime(config.getTickTime());
-            quorumPeer.setMinSessionTimeout(config.getMinSessionTimeout());
+            quorumPeer.setElectionType(config.getElectionAlg());  //选举算法类型，目前仅支持FastLeaderElection算法
+            quorumPeer.setMyid(config.getServerId());   //当前机器的id
+            quorumPeer.setTickTime(config.getTickTime());  //机器间的心态间隔时间
+            quorumPeer.setMinSessionTimeout(config.getMinSessionTimeout());  //会话最小超时时间
             quorumPeer.setMaxSessionTimeout(config.getMaxSessionTimeout());
             quorumPeer.setInitLimit(config.getInitLimit());
             quorumPeer.setSyncLimit(config.getSyncLimit());
             quorumPeer.setConfigFileName(config.getConfigFilename());
             quorumPeer.setZKDatabase(new ZKDatabase(quorumPeer.getTxnFactory()));
+            //投票决定方式，默认超过半数就通过
             quorumPeer.setQuorumVerifier(config.getQuorumVerifier(), false);
             if (config.getLastSeenQuorumVerifier() != null) {
                 quorumPeer.setLastSeenQuorumVerifier(config.getLastSeenQuorumVerifier(), false);
             }
             quorumPeer.initConfigInZKDatabase();
-            quorumPeer.setCnxnFactory(cnxnFactory);
+            quorumPeer.setCnxnFactory(cnxnFactory);  //NIO通信
             quorumPeer.setSecureCnxnFactory(secureCnxnFactory);
             quorumPeer.setSslQuorum(config.isSslQuorum());
             quorumPeer.setUsePortUnification(config.shouldUsePortUnification());
@@ -197,6 +200,8 @@ public class QuorumPeerMain {
 
             //启动
             quorumPeer.start();
+
+            //能让当前线程获取优先执行权限，直至执行结束
             quorumPeer.join();
         } catch (InterruptedException e) {
             // warn, but generally this is ok

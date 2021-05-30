@@ -168,7 +168,6 @@ public class QuorumCnxManager {
             this.buffer = buffer;
             this.sid = sid;
         }
-
         //消息体
         ByteBuffer buffer;
         // peer的sid
@@ -255,9 +254,13 @@ public class QuorumCnxManager {
                             boolean listenOnAllIPs,
                             int quorumCnxnThreadsSize,
                             boolean quorumSaslAuthEnabled) {
+        //消息接收队列，保存来自其他服务器节点的投票
         this.recvQueue = new ArrayBlockingQueue<Message>(RECV_CAPACITY);
+        //根据SID分组，为其他每台节点单独创建发送队列
         this.queueSendMap = new ConcurrentHashMap<Long, ArrayBlockingQueue<ByteBuffer>>();
+        //构建sendWorker,消息发送器，用来发送自身投票
         this.senderWorkerMap = new ConcurrentHashMap<Long, SendWorker>();
+        //保存最近发送的一次投票
         this.lastMessageSent = new ConcurrentHashMap<Long, ByteBuffer>();
 
         String cnxToValue = System.getProperty("zookeeper.cnxTimeout");
@@ -267,15 +270,16 @@ public class QuorumCnxManager {
 
         this.self = self;
 
+        //服务器id
         this.mySid = mySid;
         this.socketTimeout = socketTimeout;
         this.view = view;
         this.listenOnAllIPs = listenOnAllIPs;
 
-        initializeAuth(mySid, authServer, authLearner, quorumCnxnThreadsSize,
-                quorumSaslAuthEnabled);
+        initializeAuth(mySid, authServer, authLearner, quorumCnxnThreadsSize, quorumSaslAuthEnabled);
 
         // Starts listener thread that waits for connection requests
+        // 监听器线程，监听选举端口，开启后会监听来自其他服务的连接请求
         listener = new Listener();
         listener.setName("QuorumPeerListener");
     }
@@ -551,7 +555,7 @@ public class QuorumCnxManager {
         // do authenticating learner
         authServer.authenticate(sock, din);
 
-        //如果大于自己sid
+        //发起连接的机器id小于当前机器id，关闭连接
         if (sid < self.getId()) {
             //取出 sendworker 并关闭
             SendWorker sw = senderWorkerMap.get(sid);
@@ -567,12 +571,14 @@ public class QuorumCnxManager {
             if (electionAddr != null) {
                 connectOne(sid, electionAddr);
             } else {
+                //大的一端主动向小的一端发起连接请求
                 connectOne(sid);
             }
 
         } else { // Otherwise start worker threads to receive data.
-            //初始化
+            //创建消息发送器
             SendWorker sw = new SendWorker(sock, sid);
+            //创建消息接收器
             RecvWorker rw = new RecvWorker(sock, din, sid, sw);
             sw.setRecv(rw);
 
@@ -587,7 +593,7 @@ public class QuorumCnxManager {
             senderWorkerMap.put(sid, sw);
             queueSendMap.putIfAbsent(sid, new ArrayBlockingQueue<ByteBuffer>(SEND_CAPACITY));
 
-            //启动sendworker和recvworker
+            //启动sendworker和recvworker, 开始接收和发送消息
             sw.start();
             rw.start();
         }
@@ -726,8 +732,7 @@ public class QuorumCnxManager {
 
     public void connectAll() {
         long sid;
-        for (Enumeration<Long> en = queueSendMap.keys();
-             en.hasMoreElements(); ) {
+        for (Enumeration<Long> en = queueSendMap.keys(); en.hasMoreElements(); ) {
             sid = en.nextElement();
             connectOne(sid);
         }
@@ -899,15 +904,13 @@ public class QuorumCnxManager {
                         //获取peer的连接信息，是从配置中读到，然后存在QuorumPeer.QuorumServer内部类中
                         addr = new InetSocketAddress(port);
                     } else {
-                        // Resolve hostname for this server in case the
-                        // underlying ip address has changed.
                         self.recreateSocketAddresses(self.getId());
                         addr = self.getElectionAddress();
                     }
                     LOG.info("My election bind port: " + addr.toString());
                     setName(addr.toString());
 
-                    //绑定连接地址
+                    // 绑定监听地址
                     ss.bind(addr);
                     while (!shutdown) {
                         try {
@@ -915,15 +918,11 @@ public class QuorumCnxManager {
                             //建立连接
                             setSockOpts(client);
                             LOG.info("Received connection request " + formatInetAddr((InetSocketAddress) client.getRemoteSocketAddress()));
-                            // Receive and handle the connection request
-                            // asynchronously if the quorum sasl authentication is
-                            // enabled. This is required because sasl server
-                            // authentication process may take few seconds to finish,
-                            // this may delay next peer connection requests.
                             if (quorumSaslAuthEnabled) {
                                 //接受新的连接，之所以要分异步和同步是因为sasl校验比较耗时，所以采用异步的方式
                                 receiveConnectionAsync(client);
                             } else {
+                                //接收连接请求
                                 receiveConnection(client);
                             }
                             numRetries = 0;
@@ -1093,19 +1092,6 @@ public class QuorumCnxManager {
             //记录当前工作线程数
             threadCnt.incrementAndGet();
             try {
-                /**
-                 * If there is nothing in the queue to send, then we
-                 * send the lastMessage to ensure that the last message
-                 * was received by the peer. The message could be dropped
-                 * in case self or the peer shutdown their connection
-                 * (and exit the thread) prior to reading/processing
-                 * the last message. Duplicate messages are handled correctly
-                 * by the peer.
-                 *
-                 * If the send queue is non-empty, then we have a recent
-                 * message than that stored in lastMessage. To avoid sending
-                 * stale message, we should send the message in the send queue.
-                 */
                 //从对应的sid的发送队列中取出发送的消息
                 ArrayBlockingQueue<ByteBuffer> bq = queueSendMap.get(sid);
                 if (bq == null || isSendQueueEmpty(bq)) {

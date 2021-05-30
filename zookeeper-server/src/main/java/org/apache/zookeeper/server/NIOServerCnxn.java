@@ -713,7 +713,7 @@ public class NIOServerCnxn extends ServerCnxn {
         }
 
         // Convert WatchedEvent to a type that can be sent over the wire
-        //包装watcherevent
+        //包装 watcherevent
         WatcherEvent e = event.getWrapper();
 
         //发送回复

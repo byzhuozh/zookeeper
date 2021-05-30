@@ -385,7 +385,7 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
                     sendThread.primeConnection();
                 }
 
-            //读或写就绪
+                //读或写就绪
             } else if ((k.readyOps() & (SelectionKey.OP_READ | SelectionKey.OP_WRITE)) != 0) {
                 //利用pendingQueue和outgoingQueue进行IO
                 doIO(pendingQueue, cnxn);

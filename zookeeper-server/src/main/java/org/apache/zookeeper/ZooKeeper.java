@@ -553,8 +553,9 @@ public class ZooKeeper implements AutoCloseable {
         /**
          * Register the watcher with the set of watches on path.
          *
-         * @param rc the result code of the operation that attempted to
-         *           add the watch on the path.
+         * @param rc the result code of the operation that attempted to  add the watch on the path.
+         *
+         * 注册 watcher
          */
         public void register(int rc) {
             if (shouldAddWatch(rc)) {
@@ -781,8 +782,7 @@ public class ZooKeeper implements AutoCloseable {
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
                      boolean canBeReadOnly, HostProvider aHostProvider)
             throws IOException {
-        this(connectString, sessionTimeout, watcher, canBeReadOnly,
-                aHostProvider, null);
+        this(connectString, sessionTimeout, watcher, canBeReadOnly, aHostProvider, null);
     }
 
 
@@ -921,8 +921,7 @@ public class ZooKeeper implements AutoCloseable {
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
                      boolean canBeReadOnly) throws IOException {
-        this(connectString, sessionTimeout, watcher, canBeReadOnly,
-                createDefaultHostProvider(connectString));
+        this(connectString, sessionTimeout, watcher, canBeReadOnly, createDefaultHostProvider(connectString));
     }
 
     /**
@@ -1245,6 +1244,7 @@ public class ZooKeeper implements AutoCloseable {
     }
 
     // default hostprovider
+    // 客户端地址列表管理器
     private static HostProvider createDefaultHostProvider(String connectString) {
         return new StaticHostProvider(
                 new ConnectStringParser(connectString).getServerAddresses());
@@ -2293,8 +2293,7 @@ public class ZooKeeper implements AutoCloseable {
         SetDataResponse response = new SetDataResponse();
         ReplyHeader r = cnxn.submitRequest(h, request, response, null);
         if (r.getErr() != 0) {
-            throw KeeperException.create(KeeperException.Code.get(r.getErr()),
-                    clientPath);
+            throw KeeperException.create(KeeperException.Code.get(r.getErr()), clientPath);
         }
         return response.getStat();
     }

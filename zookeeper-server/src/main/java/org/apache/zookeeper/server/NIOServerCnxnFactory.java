@@ -306,7 +306,6 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
                 LOG.debug("Accepted socket connection from " + sc.socket().getRemoteSocketAddress());
                 sc.configureBlocking(false);
 
-                // Round-robin assign this connection to a selector thread
                 // 轮询选择一个 selectorIterator 进行注册
                 if (!selectorIterator.hasNext()) {
                     selectorIterator = selectorThreads.iterator();
@@ -315,9 +314,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
 
                 //将监听到的客户端 socket 注册到 SelectorThread 的队列中，由 SelectorThread 线程 将 socket 注册到 selector 上, 并监听读事件
                 if (!selectorThread.addAcceptedConnection(sc)) {
-                    throw new IOException(
-                            "Unable to add connection to selector queue"
-                                    + (stopped ? " (shutdown in progress)" : ""));
+                    throw new IOException("Unable to add connection to selector queue" + (stopped ? " (shutdown in progress)" : ""));
                 }
                 acceptErrorLogger.flush();
             } catch (IOException e) {
@@ -703,6 +700,8 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
                 + " worker threads, and "
                 + (directBufferBytes == 0 ? "gathered writes." :
                 ("" + (directBufferBytes / 1024) + " kB direct buffers.")));
+
+        // Reactor 模型的中的子 Selector
         for (int i = 0; i < numSelectorThreads; ++i) {
             selectorThreads.add(new SelectorThread(i));
         }
@@ -711,7 +710,9 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
         this.ss = ServerSocketChannel.open();
         ss.socket().setReuseAddress(true);
         LOG.info("binding to port " + addr);
+        //绑定监听端口
         ss.socket().bind(addr);
+        //设置为非阻塞
         ss.configureBlocking(false);
 
         //初始化 accept 线程，用作监听客户端的连接请求

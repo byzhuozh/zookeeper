@@ -127,11 +127,15 @@ public class ClientCnxn {
 
     /**
      * These are the packets that have been sent and are waiting for a response.
+     *
+     * 服务端响应的等待队列
      */
     private final LinkedList<Packet> pendingQueue = new LinkedList<Packet>();
 
     /**
      * These are the packets that need to be sent.
+     *
+     * 客户端的请求发送队列
      */
     private final LinkedBlockingDeque<Packet> outgoingQueue = new LinkedBlockingDeque<Packet>();
 
@@ -299,6 +303,10 @@ public class ClientCnxn {
             this.watchRegistration = watchRegistration;
         }
 
+        /**
+         * 协议内容：
+         *    请求： 长度 + 请求头 + 请求体
+         */
         public void createBB() {
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -455,29 +463,29 @@ public class ClientCnxn {
             queueEvent(event, null);
         }
 
-        private void queueEvent(WatchedEvent event,
-                                Set<Watcher> materializedWatchers) {
+        private void queueEvent(WatchedEvent event, Set<Watcher> materializedWatchers) {
             if (event.getType() == EventType.None
                     && sessionState == event.getState()) {
                 return;
             }
+
             sessionState = event.getState();
             final Set<Watcher> watchers;
             if (materializedWatchers == null) {
                 // materialize the watchers based on the event
-                watchers = watcher.materialize(event.getState(),
-                        event.getType(), event.getPath());
+                //根据状态、事件类型、path 取出对应的 watcher
+                watchers = watcher.materialize(event.getState(), event.getType(), event.getPath());
             } else {
                 watchers = new HashSet<Watcher>();
                 watchers.addAll(materializedWatchers);
             }
             WatcherSetEventPair pair = new WatcherSetEventPair(watchers, event);
             // queue the pair (watch set & event) for later processing
+            //添加到待处理的 watcher 队列中
             waitingEvents.add(pair);
         }
 
-        public void queueCallback(AsyncCallback cb, int rc, String path,
-                                  Object ctx) {
+        public void queueCallback(AsyncCallback cb, int rc, String path, Object ctx) {
             waitingEvents.add(new LocalCallback(cb, rc, path, ctx));
         }
 
@@ -503,6 +511,7 @@ public class ClientCnxn {
             try {
                 isRunning = true;
                 while (true) {
+                    //从待处理的 watch 队列中取出 watcher事件
                     Object event = waitingEvents.take();
                     if (event == eventOfDeath) {
                         wasKilled = true;
@@ -532,6 +541,7 @@ public class ClientCnxn {
                     WatcherSetEventPair pair = (WatcherSetEventPair) event;
                     for (Watcher watcher : pair.watchers) {
                         try {
+                            //执行 watcher 逻辑
                             watcher.process(pair.event);
                         } catch (Throwable t) {
                             LOG.error("Error while calling watcher ", t);
@@ -540,26 +550,19 @@ public class ClientCnxn {
                 } else if (event instanceof LocalCallback) {
                     LocalCallback lcb = (LocalCallback) event;
                     if (lcb.cb instanceof StatCallback) {
-                        ((StatCallback) lcb.cb).processResult(lcb.rc, lcb.path,
-                                lcb.ctx, null);
+                        ((StatCallback) lcb.cb).processResult(lcb.rc, lcb.path, lcb.ctx, null);
                     } else if (lcb.cb instanceof DataCallback) {
-                        ((DataCallback) lcb.cb).processResult(lcb.rc, lcb.path,
-                                lcb.ctx, null, null);
+                        ((DataCallback) lcb.cb).processResult(lcb.rc, lcb.path, lcb.ctx, null, null);
                     } else if (lcb.cb instanceof ACLCallback) {
-                        ((ACLCallback) lcb.cb).processResult(lcb.rc, lcb.path,
-                                lcb.ctx, null, null);
+                        ((ACLCallback) lcb.cb).processResult(lcb.rc, lcb.path, lcb.ctx, null, null);
                     } else if (lcb.cb instanceof ChildrenCallback) {
-                        ((ChildrenCallback) lcb.cb).processResult(lcb.rc,
-                                lcb.path, lcb.ctx, null);
+                        ((ChildrenCallback) lcb.cb).processResult(lcb.rc, lcb.path, lcb.ctx, null);
                     } else if (lcb.cb instanceof Children2Callback) {
-                        ((Children2Callback) lcb.cb).processResult(lcb.rc,
-                                lcb.path, lcb.ctx, null, null);
+                        ((Children2Callback) lcb.cb).processResult(lcb.rc, lcb.path, lcb.ctx, null, null);
                     } else if (lcb.cb instanceof StringCallback) {
-                        ((StringCallback) lcb.cb).processResult(lcb.rc,
-                                lcb.path, lcb.ctx, null);
+                        ((StringCallback) lcb.cb).processResult(lcb.rc, lcb.path, lcb.ctx, null);
                     } else {
-                        ((VoidCallback) lcb.cb).processResult(lcb.rc, lcb.path,
-                                lcb.ctx);
+                        ((VoidCallback) lcb.cb).processResult(lcb.rc, lcb.path, lcb.ctx);
                     }
                 } else {
                     Packet p = (Packet) event;
@@ -576,17 +579,11 @@ public class ClientCnxn {
                         StatCallback cb = (StatCallback) p.cb;
                         if (rc == 0) {
                             if (p.response instanceof ExistsResponse) {
-                                cb.processResult(rc, clientPath, p.ctx,
-                                        ((ExistsResponse) p.response)
-                                                .getStat());
+                                cb.processResult(rc, clientPath, p.ctx, ((ExistsResponse) p.response).getStat());
                             } else if (p.response instanceof SetDataResponse) {
-                                cb.processResult(rc, clientPath, p.ctx,
-                                        ((SetDataResponse) p.response)
-                                                .getStat());
+                                cb.processResult(rc, clientPath, p.ctx, ((SetDataResponse) p.response).getStat());
                             } else if (p.response instanceof SetACLResponse) {
-                                cb.processResult(rc, clientPath, p.ctx,
-                                        ((SetACLResponse) p.response)
-                                                .getStat());
+                                cb.processResult(rc, clientPath, p.ctx, ((SetACLResponse) p.response).getStat());
                             }
                         } else {
                             cb.processResult(rc, clientPath, p.ctx, null);
@@ -595,28 +592,23 @@ public class ClientCnxn {
                         DataCallback cb = (DataCallback) p.cb;
                         GetDataResponse rsp = (GetDataResponse) p.response;
                         if (rc == 0) {
-                            cb.processResult(rc, clientPath, p.ctx, rsp
-                                    .getData(), rsp.getStat());
+                            cb.processResult(rc, clientPath, p.ctx, rsp.getData(), rsp.getStat());
                         } else {
-                            cb.processResult(rc, clientPath, p.ctx, null,
-                                    null);
+                            cb.processResult(rc, clientPath, p.ctx, null, null);
                         }
                     } else if (p.response instanceof GetACLResponse) {
                         ACLCallback cb = (ACLCallback) p.cb;
                         GetACLResponse rsp = (GetACLResponse) p.response;
                         if (rc == 0) {
-                            cb.processResult(rc, clientPath, p.ctx, rsp
-                                    .getAcl(), rsp.getStat());
+                            cb.processResult(rc, clientPath, p.ctx, rsp.getAcl(), rsp.getStat());
                         } else {
-                            cb.processResult(rc, clientPath, p.ctx, null,
-                                    null);
+                            cb.processResult(rc, clientPath, p.ctx, null, null);
                         }
                     } else if (p.response instanceof GetChildrenResponse) {
                         ChildrenCallback cb = (ChildrenCallback) p.cb;
                         GetChildrenResponse rsp = (GetChildrenResponse) p.response;
                         if (rc == 0) {
-                            cb.processResult(rc, clientPath, p.ctx, rsp
-                                    .getChildren());
+                            cb.processResult(rc, clientPath, p.ctx, rsp.getChildren());
                         } else {
                             cb.processResult(rc, clientPath, p.ctx, null);
                         }
@@ -624,8 +616,7 @@ public class ClientCnxn {
                         Children2Callback cb = (Children2Callback) p.cb;
                         GetChildren2Response rsp = (GetChildren2Response) p.response;
                         if (rc == 0) {
-                            cb.processResult(rc, clientPath, p.ctx, rsp
-                                    .getChildren(), rsp.getStat());
+                            cb.processResult(rc, clientPath, p.ctx, rsp.getChildren(), rsp.getStat());
                         } else {
                             cb.processResult(rc, clientPath, p.ctx, null, null);
                         }
@@ -661,8 +652,7 @@ public class ClientCnxn {
                             int newRc = rc;
                             for (OpResult result : results) {
                                 if (result instanceof ErrorResult
-                                        && KeeperException.Code.OK.intValue() != (newRc = ((ErrorResult) result)
-                                        .getErr())) {
+                                        && KeeperException.Code.OK.intValue() != (newRc = ((ErrorResult) result).getErr())) {
                                     break;
                                 }
                             }
@@ -687,14 +677,14 @@ public class ClientCnxn {
         if (p.watchRegistration != null) {
             p.watchRegistration.register(err);
         }
+
         // Add all the removed watch events to the event queue, so that the
         // clients will be notified with 'Data/Child WatchRemoved' event type.
         if (p.watchDeregistration != null) {
             Map<EventType, Set<Watcher>> materializedWatchers = null;
             try {
                 materializedWatchers = p.watchDeregistration.unregister(err);
-                for (Entry<EventType, Set<Watcher>> entry : materializedWatchers
-                        .entrySet()) {
+                for (Entry<EventType, Set<Watcher>> entry : materializedWatchers.entrySet()) {
                     Set<Watcher> watchers = entry.getValue();
                     if (watchers.size() > 0) {
                         queueEvent(p.watchDeregistration.getClientPath(), err, watchers, entry.getKey());
@@ -831,8 +821,7 @@ public class ClientCnxn {
                 // -4 is the xid for AuthPacket               
                 if (replyHdr.getErr() == KeeperException.Code.AUTHFAILED.intValue()) {
                     state = States.AUTH_FAILED;
-                    eventThread.queueEvent(new WatchedEvent(Watcher.Event.EventType.None,
-                            Watcher.Event.KeeperState.AuthFailed, null));
+                    eventThread.queueEvent(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.AuthFailed, null));
                     eventThread.queueEventOfDeath();
                 }
                 if (LOG.isDebugEnabled()) {
@@ -846,8 +835,7 @@ public class ClientCnxn {
             if (replyHdr.getXid() == -1) {
                 // -1 means notification
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got notification sessionid:0x"
-                            + Long.toHexString(sessionId));
+                    LOG.debug("Got notification sessionid:0x" + Long.toHexString(sessionId));
                 }
                 WatcherEvent event = new WatcherEvent();
                 event.deserialize(bbia, "response");
