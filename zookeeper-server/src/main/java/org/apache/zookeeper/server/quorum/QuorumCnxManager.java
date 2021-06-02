@@ -18,47 +18,29 @@
 
 package org.apache.zookeeper.server.quorum;
 
-import static org.apache.zookeeper.common.NetUtils.formatInetAddr;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
-import java.nio.BufferUnderflowException;
-import java.nio.ByteBuffer;
-import java.nio.channels.UnresolvedAddressException;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import javax.net.ssl.SSLSocket;
-
 import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.server.ExitCode;
 import org.apache.zookeeper.server.ZooKeeperThread;
+import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
 import org.apache.zookeeper.server.quorum.auth.QuorumAuthLearner;
 import org.apache.zookeeper.server.quorum.auth.QuorumAuthServer;
 import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
-import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
 import org.apache.zookeeper.server.util.ConfigUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLSocket;
+import java.io.*;
+import java.net.*;
+import java.nio.BufferUnderflowException;
+import java.nio.ByteBuffer;
+import java.nio.channels.UnresolvedAddressException;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.apache.zookeeper.common.NetUtils.formatInetAddr;
 
 /**
  * This class implements a connection manager for leader election using TCP. It
@@ -168,6 +150,7 @@ public class QuorumCnxManager {
             this.buffer = buffer;
             this.sid = sid;
         }
+
         //消息体
         ByteBuffer buffer;
         // peer的sid
@@ -432,11 +415,12 @@ public class QuorumCnxManager {
 
         // If lost the challenge, then drop the new connection
         // 如果自己的sid小于连接的sid，直接关闭
+        // 规则：只允许SID大的服务器主动和其他服务器建立连接，否则断开连接。在receiveConnection方法中，服务器会接受远程SID比自己大的连接。从而避免了两台服务器之间的重复连接。
         if (sid > self.getId()) {
             LOG.info("Have smaller server identifier, so dropping the " + "connection: (" + sid + ", " + self.getId() + ")");
             closeSocket(sock);
         } else {
-            //如果自己的sid大于连接的sid，初始化sendworker和recvworker
+            //如果自己的sid大于连接的sid，初始化 sendworker 和 recvworker
             SendWorker sw = new SendWorker(sock, sid);
             RecvWorker rw = new RecvWorker(sock, din, sid, sw);
             sw.setRecv(rw);  // sengworker 记录 recvworker
@@ -555,7 +539,18 @@ public class QuorumCnxManager {
         // do authenticating learner
         authServer.authenticate(sock, din);
 
-        //发起连接的机器id小于当前机器id，关闭连接
+        /**
+         * 规则：只允许SID大的服务器主动和其他服务器建立连接，否则断开连接。在 receiveConnection方法中，服务器会接受远程SID比自己大的连接。从而避免了两台服务器之间的重复连接。
+         * 也就是只允许 myId 大的向 myId 小的发起连接
+         *
+         * 集群：
+         * myId-1,  myId-2,  myId-3
+         * 连接发起：
+         *     myId-2 => myId-1
+         *     myid-3 => myId-2
+         *     myId-3 => myId-1
+         */
+        //发起连接的机器id小于当前机器id，关闭连接,
         if (sid < self.getId()) {
             //取出 sendworker 并关闭
             SendWorker sw = senderWorkerMap.get(sid);
@@ -576,6 +571,7 @@ public class QuorumCnxManager {
             }
 
         } else { // Otherwise start worker threads to receive data.
+            //此时监听到的 socket 服务，都是 myId 比当前节点大
             //创建消息发送器
             SendWorker sw = new SendWorker(sock, sid);
             //创建消息接收器
@@ -650,8 +646,8 @@ public class QuorumCnxManager {
                 sock = new Socket();
                 setSockOpts(sock);  //socket连接信息
                 sock.connect(electionAddr, cnxTO);
-
             }
+
             LOG.debug("Connected to server " + sid);
             // Sends connection request asynchronously if the quorum
             // sasl authentication is enabled. This is required because
