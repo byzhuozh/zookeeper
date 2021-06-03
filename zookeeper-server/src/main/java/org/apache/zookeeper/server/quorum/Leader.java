@@ -381,8 +381,7 @@ public class Leader {
         private volatile boolean stop = false;
 
         public LearnerCnxAcceptor() {
-            super("LearnerCnxAcceptor-" + ss.getLocalSocketAddress(), zk
-                    .getZooKeeperServerListener());
+            super("LearnerCnxAcceptor-" + ss.getLocalSocketAddress(), zk.getZooKeeperServerListener());
         }
 
         @Override
@@ -392,6 +391,7 @@ public class Leader {
                     Socket s = null;
                     boolean error = false;
                     try {
+                        //监听 flower lianjie
                         s = ss.accept();
 
                         // start with the initLimit, once the ack is processed
@@ -399,8 +399,9 @@ public class Leader {
                         s.setSoTimeout(self.tickTime * self.initLimit);
                         s.setTcpNoDelay(nodelay);
 
-                        BufferedInputStream is = new BufferedInputStream(
-                                s.getInputStream());
+                        BufferedInputStream is = new BufferedInputStream(s.getInputStream());
+
+                        //为每个follower启动单独线程，处理IO
                         LearnerHandler fh = new LearnerHandler(s, is, Leader.this);
                         fh.start();
                     } catch (SocketException e) {
@@ -471,33 +472,39 @@ public class Leader {
         zk.registerJMX(new LeaderBean(this, zk), self.jmxLocalPeerBean);
 
         try {
+            //重置选票
             self.tick.set(0);
+
+            //加载 zk 的内存数据库
             zk.loadData();
 
             leaderStateSummary = new StateSummary(self.getCurrentEpoch(), zk.getLastProcessedZxid());
 
-            // Start thread that waits for connection requests from
-            // new followers.
+            // Start thread that waits for connection requests from new followers.
+            // 启动 lead端 口的监听线程，专门用来监听新的follower
+            // ip:port1:port2  port1端口为数据通信端口,port2为选举通信端口
             cnxAcceptor = new LearnerCnxAcceptor();
             cnxAcceptor.start();
 
+            //获取当前节点的逻辑时钟
+            //等待足够多的follower进来，代表自己确实是leader，此处lead线程可能会等待
             long epoch = getEpochToPropose(self.getId(), self.getAcceptedEpoch());
 
+            //由0开始重新生成zxid
             zk.setZxid(ZxidUtils.makeZxid(epoch, 0));
 
             synchronized (this) {
                 lastProposed = zk.getZxid();
             }
 
-            newLeaderProposal.packet = new QuorumPacket(NEWLEADER, zk.getZxid(),
-                    null, null);
+            newLeaderProposal.packet = new QuorumPacket(NEWLEADER, zk.getZxid(), null, null);
 
 
             if ((newLeaderProposal.packet.getZxid() & 0xffffffffL) != 0) {
-                LOG.info("NEWLEADER proposal has Zxid of "
-                        + Long.toHexString(newLeaderProposal.packet.getZxid()));
+                LOG.info("NEWLEADER proposal has Zxid of " + Long.toHexString(newLeaderProposal.packet.getZxid()));
             }
 
+            //有资格的参与者
             QuorumVerifier lastSeenQV = self.getLastSeenQuorumVerifier();
             QuorumVerifier curQV = self.getQuorumVerifier();
             if (curQV.getVersion() == 0 && curQV.getVersion() == lastSeenQV.getVersion()) {
@@ -542,6 +549,7 @@ public class Leader {
             self.setCurrentEpoch(epoch);
 
             try {
+                // 统一 zxid, 等待 flower 响应
                 waitForNewLeaderAck(self.getId(), zk.getZxid());
             } catch (InterruptedException e) {
                 shutdown("Waiting for a quorum of followers, only synced with sids: [ "
@@ -567,6 +575,8 @@ public class Leader {
                 return;
             }
 
+            // 选主结束
+            // 启动zk服务,对外提供服务
             startZkServer();
 
             /**
@@ -1218,25 +1228,34 @@ public class Leader {
                 return epoch;
             }
             if (lastAcceptedEpoch >= epoch) {
+                //开始新的纪元(新的逻辑时钟)
                 epoch = lastAcceptedEpoch + 1;
             }
+
+            //校验是否是参与者
             if (isParticipant(sid)) {
+                //将自己加入连接队伍中，方便后续判断lead是否有效
                 connectingFollowers.add(sid);
             }
+
+            //如果足够多的follower进入，选举有效，则无需等待，并通知其他的等待线程，类似于Barrier
             QuorumVerifier verifier = self.getQuorumVerifier();
             if (connectingFollowers.contains(self.getId()) &&
-                    verifier.containsQuorum(connectingFollowers)) {
+                    verifier.containsQuorum(connectingFollowers)) {  //超过半数
                 waitingForNewEpoch = false;
                 self.setAcceptedEpoch(epoch);
                 connectingFollowers.notifyAll();
             } else {
+                //如果进入的 follower 不够，则进入等待，超时即为initLimit时间
                 long start = Time.currentElapsedTime();
                 long cur = start;
                 long end = start + self.getInitLimit() * self.getTickTime();
+                //自选等待
                 while (waitingForNewEpoch && cur < end) {
                     connectingFollowers.wait(end - cur);
                     cur = Time.currentElapsedTime();
                 }
+                //选举超时，退出lead过程，重新发起选举
                 if (waitingForNewEpoch) {
                     throw new InterruptedException("Timeout while waiting for epoch from quorum");
                 }

@@ -1268,8 +1268,9 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                             // 当选举过之后是FOLLOWING状态，那么实例化的是 FollowerZooKeeperServer
                             setFollower(makeFollower(logFactory));
 
-                            // 同步leader
+                            // flower 服务器启动并阻塞
                             follower.followLeader();
+
                         } catch (Exception e) {
                             LOG.warn("Unexpected exception", e);
                         } finally {
@@ -1281,8 +1282,13 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                     case LEADING:
                         LOG.info("LEADING");
                         try {
+
+                            // 初始化Leader对象
                             setLeader(makeLeader(logFactory));
+
+                            // leader 服务器启动并阻塞
                             leader.lead();
+
                             setLeader(null);
                         } catch (Exception e) {
                             LOG.warn("Unexpected exception", e);

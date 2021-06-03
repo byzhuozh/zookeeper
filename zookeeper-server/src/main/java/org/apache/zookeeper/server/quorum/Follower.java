@@ -68,19 +68,24 @@ public class Follower extends Learner {
         long electionTimeTaken = self.end_fle - self.start_fle;
         self.setElectionTimeTaken(electionTimeTaken);
         LOG.info("FOLLOWING - LEADER ELECTION TOOK - {} {}", electionTimeTaken, QuorumPeer.FLE_TIME_UNIT);
+
         self.start_fle = 0;
         self.end_fle = 0;
         fzk.registerJMX(new FollowerBean(this, zk), self.jmxLocalPeerBean);
+
         try {
             //获取 leader 节点的服务信息
             QuorumServer leaderServer = findLeader();
             try {
-                //flower 、Observer 连接 leader
+                //连接 leader
                 connectToLeader(leaderServer.addr, leaderServer.hostname);
 
+                //注册follower，根据Leader和follower协议，主要是同步选举轮数
                 long newEpochZxid = registerWithLeader(Leader.FOLLOWERINFO);
+
                 if (self.isReconfigStateChange())
                     throw new Exception("learned about role change");
+
                 //check to see if the leader zxid is lower than ours
                 //this should never happen but is just a safety check
                 long newEpoch = ZxidUtils.getEpochFromZxid(newEpochZxid);
@@ -89,8 +94,12 @@ public class Follower extends Learner {
                             + " is less than our accepted epoch " + ZxidUtils.zxidToString(self.getAcceptedEpoch()));
                     throw new IOException("Error: Epoch of leader is lower");
                 }
+
+                //同步数据
                 syncWithLeader(newEpochZxid);
                 QuorumPacket qp = new QuorumPacket();
+
+                //接受Leader消息，执行并反馈给leader，线程在此自旋
                 while (this.isRunning()) {
                     readPacket(qp);
                     processPacket(qp);
@@ -113,6 +122,7 @@ public class Follower extends Learner {
 
     /**
      * Examine the packet received in qp and dispatch based on its contents.
+     *
      * @param qp
      * @throws IOException
      */
@@ -178,6 +188,7 @@ public class Follower extends Learner {
 
     /**
      * The zxid of the last operation seen
+     *
      * @return zxid
      */
     public long getZxid() {
@@ -193,6 +204,7 @@ public class Follower extends Learner {
 
     /**
      * The zxid of the last operation queued
+     *
      * @return zxid
      */
     protected long getLastQueued() {
