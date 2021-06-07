@@ -374,6 +374,7 @@ public class LearnerHandler extends ZooKeeperThread {
                 return;
             }
 
+            // flower 上报的数据
             byte learnerInfoData[] = qp.getData();
             if (learnerInfoData != null) {
                 ByteBuffer bbsid = ByteBuffer.wrap(learnerInfoData);
@@ -404,12 +405,16 @@ public class LearnerHandler extends ZooKeeperThread {
                 learnerType = LearnerType.OBSERVER;
             }
 
+            //解析 flower 当前所在的 epoch
             long lastAcceptedEpoch = ZxidUtils.getEpochFromZxid(qp.getZxid());
 
             long peerLastZxid;
             StateSummary ss = null;
             long zxid = qp.getZxid();
+
+            // 获取当前的选举轮次
             long newEpoch = leader.getEpochToPropose(this.getSid(), lastAcceptedEpoch);
+
             long newLeaderZxid = ZxidUtils.makeZxid(newEpoch, 0);
 
             if (this.getVersion() < 0x10000) {

@@ -1227,6 +1227,7 @@ public class Leader {
             if (!waitingForNewEpoch) {
                 return epoch;
             }
+
             if (lastAcceptedEpoch >= epoch) {
                 //开始新的纪元(新的逻辑时钟)
                 epoch = lastAcceptedEpoch + 1;
@@ -1243,6 +1244,7 @@ public class Leader {
             if (connectingFollowers.contains(self.getId()) &&
                     verifier.containsQuorum(connectingFollowers)) {  //超过半数
                 waitingForNewEpoch = false;
+                //更新选举轮次
                 self.setAcceptedEpoch(epoch);
                 connectingFollowers.notifyAll();
             } else {

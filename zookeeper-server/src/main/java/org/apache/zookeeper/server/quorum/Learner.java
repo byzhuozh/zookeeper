@@ -17,29 +17,7 @@
  */
 package org.apache.zookeeper.server.quorum;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-
-import javax.net.ssl.SSLSocket;
-
-import org.apache.jute.BinaryInputArchive;
-import org.apache.jute.BinaryOutputArchive;
-import org.apache.jute.InputArchive;
-import org.apache.jute.OutputArchive;
-import org.apache.jute.Record;
+import org.apache.jute.*;
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.server.Request;
@@ -54,10 +32,21 @@ import org.apache.zookeeper.txn.TxnHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLSocket;
+import java.io.*;
+import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * This class is the superclass of two of the three main actors in a ZK
- * ensemble: Followers and Observers. Both Followers and Observers share 
- * a good deal of code which is moved into Peer to avoid duplication. 
+ * ensemble: Followers and Observers. Both Followers and Observers share
+ * a good deal of code which is moved into Peer to avoid duplication.
  */
 public class Learner {
     static class PacketInFlight {
@@ -74,6 +63,7 @@ public class Learner {
 
     /**
      * Socket getter
+     *
      * @return
      */
     public Socket getSocket() {
@@ -82,7 +72,9 @@ public class Learner {
 
     protected InputArchive leaderIs;
     protected OutputArchive leaderOs;
-    /** the protocol version of the leader */
+    /**
+     * the protocol version of the leader
+     */
     protected int leaderProtocolVersion = 0x01;
 
     protected static final Logger LOG = LoggerFactory.getLogger(Learner.class);
@@ -103,10 +95,8 @@ public class Learner {
     /**
      * validate a session for a client
      *
-     * @param clientId
-     *                the client to be revalidated
-     * @param timeout
-     *                the timeout for which the session is valid
+     * @param clientId the client to be revalidated
+     * @param timeout  the timeout for which the session is valid
      * @return
      * @throws IOException
      */
@@ -133,8 +123,7 @@ public class Learner {
     /**
      * write a packet to the leader
      *
-     * @param pp
-     *                the proposal packet to be sent to the leader
+     * @param pp the proposal packet to be sent to the leader
      * @throws IOException
      */
     void writePacket(QuorumPacket pp, boolean flush) throws IOException {
@@ -151,8 +140,7 @@ public class Learner {
     /**
      * read a packet from the leader
      *
-     * @param pp
-     *                the packet to be instantiated
+     * @param pp the packet to be instantiated
      * @throws IOException
      */
     void readPacket(QuorumPacket pp) throws IOException {
@@ -171,8 +159,7 @@ public class Learner {
     /**
      * send a request packet to the leader
      *
-     * @param request
-     *                the request from the client
+     * @param request the request from the client
      * @throws IOException
      */
     void request(Request request) throws IOException {
@@ -228,7 +215,7 @@ public class Learner {
 
     /**
      * Overridable helper method to simply call sock.connect(). This can be
-     * overriden in tests to fake connection success/failure for connectToLeader. 
+     * overriden in tests to fake connection success/failure for connectToLeader.
      */
     protected void sockConnect(Socket sock, InetSocketAddress addr, int timeout)
             throws IOException {
@@ -237,15 +224,17 @@ public class Learner {
 
     /**
      * Establish a connection with the Leader found by findLeader. Retries
-     * until either initLimit time has elapsed or 5 tries have happened. 
+     * until either initLimit time has elapsed or 5 tries have happened.
+     *
      * @param addr - the address of the Leader to connect to.
-     * @throws IOException - if the socket connection fails on the 5th attempt
-     * <li>if there is an authentication failure while connecting to leader</li>
+     * @throws IOException          - if the socket connection fails on the 5th attempt
+     *                              <li>if there is an authentication failure while connecting to leader</li>
      * @throws ConnectException
      * @throws InterruptedException
      */
     protected void connectToLeader(InetSocketAddress addr, String hostname)
             throws IOException, InterruptedException, X509Exception {
+        // 创建Socket实例
         this.sock = createSocket();
 
         int initLimitTime = self.tickTime * self.initLimit;
@@ -262,6 +251,7 @@ public class Learner {
                     throw new IOException("initLimit exceeded on retries.");
                 }
 
+                //连接 leader
                 sockConnect(sock, addr, Math.min(self.tickTime * self.syncLimit, remainingInitLimitTime));
                 if (self.isSslQuorum()) {
                     ((SSLSocket) sock).startHandshake();
@@ -293,9 +283,10 @@ public class Learner {
 
         self.authLearner.authenticate(sock, hostname);
 
-        leaderIs = BinaryInputArchive.getArchive(new BufferedInputStream(
-                sock.getInputStream()));
+        //读取 leader 的输入流
+        leaderIs = BinaryInputArchive.getArchive(new BufferedInputStream(sock.getInputStream()));
         bufferedOutput = new BufferedOutputStream(sock.getOutputStream());
+        //读取 leader 的输出流
         leaderOs = BinaryOutputArchive.getArchive(bufferedOutput);
     }
 
@@ -314,7 +305,8 @@ public class Learner {
 
     /**
      * Once connected to the leader, perform the handshake protocol to
-     * establish a following / observing connection. 
+     * establish a following / observing connection.
+     *
      * @param pktType
      * @return the zxid the Leader sends for synchronization purposes.
      * @throws IOException
@@ -324,6 +316,8 @@ public class Learner {
          * Send follower info, including last zxid and sid
          */
         long lastLoggedZxid = self.getLastLoggedZxid();
+
+        // 组装 QuorumPacket，向 leader 发送 数据包
         QuorumPacket qp = new QuorumPacket();
         qp.setType(pktType);
         qp.setZxid(ZxidUtils.makeZxid(self.getAcceptedEpoch(), 0));
@@ -337,7 +331,10 @@ public class Learner {
         boa.writeRecord(li, "LearnerInfo");
         qp.setData(bsid.toByteArray());
 
+        //向 leader 发送当前的事务位置
         writePacket(qp, true);
+
+        //读取数据
         readPacket(qp);
         final long newEpoch = ZxidUtils.getEpochFromZxid(qp.getZxid());
         if (qp.getType() == Leader.LEADERINFO) {
@@ -361,9 +358,12 @@ public class Learner {
             writePacket(ackNewEpoch, true);
             return ZxidUtils.makeZxid(newEpoch, 0);
         } else {
+
+            // 更新 flower 当前的逻辑时钟
             if (newEpoch > self.getAcceptedEpoch()) {
                 self.setAcceptedEpoch(newEpoch);
             }
+
             if (qp.getType() != Leader.NEWLEADER) {
                 LOG.error("First packet should have been NEWLEADER");
                 throw new IOException("First packet should have been NEWLEADER");
@@ -373,10 +373,11 @@ public class Learner {
     }
 
     /**
-     * Finally, synchronize our history with the Leader. 
+     * Finally, synchronize our history with the Leader.
+     *
      * @param newLeaderZxid
      * @throws IOException
-     * @throws InterruptedException
+     * @throws InterruptedException 同步数据
      */
     protected void syncWithLeader(long newLeaderZxid) throws Exception {
         QuorumPacket ack = new QuorumPacket(Leader.ACK, 0, null, null);
@@ -388,14 +389,17 @@ public class Learner {
         // In the DIFF case we don't need to do a snapshot because the transactions will sync on top of any existing snapshot
         // For SNAP and TRUNC the snapshot is needed to save that history
         boolean snapshotNeeded = true;
+
+        //读取 leader 同步过来的数据
         readPacket(qp);
+
         LinkedList<Long> packetsCommitted = new LinkedList<Long>();
         LinkedList<PacketInFlight> packetsNotCommitted = new LinkedList<PacketInFlight>();
         synchronized (zk) {
             if (qp.getType() == Leader.DIFF) {
                 LOG.info("Getting a diff from the leader 0x{}", Long.toHexString(qp.getZxid()));
                 snapshotNeeded = false;
-            } else if (qp.getType() == Leader.SNAP) {
+            } else if (qp.getType() == Leader.SNAP) {   // 执行加载全量数据
                 LOG.info("Getting a snapshot from leader 0x" + Long.toHexString(qp.getZxid()));
                 // The leader is going to dump the database
                 // db is clear as part of deserializeSnapshot()
@@ -413,7 +417,7 @@ public class Learner {
                     throw new IOException("Missing signature");
                 }
                 zk.getZKDatabase().setlastProcessedZxid(qp.getZxid());
-            } else if (qp.getType() == Leader.TRUNC) {
+            } else if (qp.getType() == Leader.TRUNC) {    // 执行回滚
                 //we need to truncate the log to the lastzxid of the leader
                 LOG.warn("Truncating log to get in sync with the leader 0x"
                         + Long.toHexString(qp.getZxid()));
@@ -446,10 +450,11 @@ public class Learner {
             boolean writeToTxnLog = !snapshotNeeded;
             // we are now going to start getting transactions to apply followed by an UPTODATE
             outerLoop:
+
             while (self.isRunning()) {
                 readPacket(qp);
                 switch (qp.getType()) {
-                    case Leader.PROPOSAL:
+                    case Leader.PROPOSAL:   // 处理提案
                         PacketInFlight pif = new PacketInFlight();
                         pif.hdr = new TxnHeader();
                         pif.rec = SerializeUtils.deserializeTxn(qp.getData(), pif.hdr);
@@ -564,15 +569,22 @@ public class Learner {
                         self.setCurrentEpoch(newEpoch);
                         writeToTxnLog = true; //Anything after this needs to go to the transaction log, not applied directly in memory
                         isPreZAB1_0 = false;
+
+                        // follower 响应新 leader ACK
                         writePacket(new QuorumPacket(Leader.ACK, newLeaderZxid, null, null), true);
                         break;
                 }
             }
         }
         ack.setZxid(ZxidUtils.makeZxid(newEpoch, 0));
+
+        //向 leader 响应
         writePacket(ack, true);
         sock.setSoTimeout(self.tickTime * self.syncLimit);
+
+        // Follower启动服务
         zk.startup();
+
         /*
          * Update the election vote here to ensure that all members of the
          * ensemble report the same vote to new servers that start up and

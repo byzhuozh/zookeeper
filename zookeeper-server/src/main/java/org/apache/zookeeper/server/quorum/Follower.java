@@ -18,20 +18,19 @@
 
 package org.apache.zookeeper.server.quorum;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-
 import org.apache.jute.Record;
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.common.Time;
 import org.apache.zookeeper.server.Request;
-import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
 import org.apache.zookeeper.server.quorum.QuorumPeer.QuorumServer;
+import org.apache.zookeeper.server.quorum.flexible.QuorumVerifier;
 import org.apache.zookeeper.server.util.SerializeUtils;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.apache.zookeeper.txn.SetDataTxn;
 import org.apache.zookeeper.txn.TxnHeader;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * This class has the control logic for the Follower.
@@ -80,7 +79,7 @@ public class Follower extends Learner {
                 //连接 leader
                 connectToLeader(leaderServer.addr, leaderServer.hostname);
 
-                //注册follower，根据Leader和follower协议，主要是同步选举轮数
+                //注册follower，根据Leader和follower协议，主要是同步选举轮数, 同步最新的起始zxid
                 long newEpochZxid = registerWithLeader(Leader.FOLLOWERINFO);
 
                 if (self.isReconfigStateChange())
@@ -89,6 +88,8 @@ public class Follower extends Learner {
                 //check to see if the leader zxid is lower than ours
                 //this should never happen but is just a safety check
                 long newEpoch = ZxidUtils.getEpochFromZxid(newEpochZxid);
+
+                //如果leader 同步过来的新的逻辑时钟比自身(flower)的还小，则说明是有异常的
                 if (newEpoch < self.getAcceptedEpoch()) {
                     LOG.error("Proposed leader epoch " + ZxidUtils.zxidToString(newEpochZxid)
                             + " is less than our accepted epoch " + ZxidUtils.zxidToString(self.getAcceptedEpoch()));
