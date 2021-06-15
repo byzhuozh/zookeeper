@@ -783,6 +783,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory {
                 thread.start();
             }
         }
+
         // ensure thread is started once and only once
         if (acceptThread.getState() == Thread.State.NEW) {
             //监听客户端新的连接请求, 然后将其 socketChannel 注册到 SelectorThread 的 selector 上

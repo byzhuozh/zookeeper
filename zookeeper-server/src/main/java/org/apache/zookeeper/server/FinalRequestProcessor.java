@@ -99,14 +99,17 @@ public class FinalRequestProcessor implements RequestProcessor {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Processing request:: " + request);
         }
+
         // request.addRQRec(">final");
         long traceMask = ZooTrace.CLIENT_REQUEST_TRACE_MASK;
         if (request.type == OpCode.ping) {
             traceMask = ZooTrace.SERVER_PING_TRACE_MASK;
         }
+
         if (LOG.isTraceEnabled()) {
             ZooTrace.logRequest(LOG, traceMask, 'E', request, "");
         }
+
         ProcessTxnResult rc = null;
 
         synchronized (zks.outstandingChanges) {
@@ -385,7 +388,7 @@ public class FinalRequestProcessor implements RequestProcessor {
                     } catch (KeeperException.NoAuthException e) {
                         List<ACL> acl1 = new ArrayList<ACL>(acl.size());
                         for (ACL a : acl) {
-                            if ("digest".equals(a.getId().getScheme())) {
+                            if ("digest" .equals(a.getId().getScheme())) {
                                 Id id = a.getId();
                                 Id id1 = new Id(id.getScheme(), id.getId().replaceAll(":.*", ":x"));
                                 acl1.add(new ACL(a.getPerms(), id1));

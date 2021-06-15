@@ -18,13 +18,6 @@
 
 package org.apache.zookeeper.server.persistence;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.jute.Record;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -39,6 +32,13 @@ import org.apache.zookeeper.txn.CreateSessionTxn;
 import org.apache.zookeeper.txn.TxnHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This is a helper class
@@ -56,14 +56,17 @@ public class FileTxnSnapLog {
 
     //the directory containing the
     //the snapshot directory
-    //事物日志目录
+    //事务日志目录
     private final File snapDir;
 
     private TxnLog txnLog;
 
     private SnapShot snapLog;
     private final boolean trustEmptySnapshot;
+
+    // 版本号
     public final static int VERSION = 2;
+    // 版本
     public final static String version = "version-";
 
     private static final Logger LOG = LoggerFactory.getLogger(FileTxnSnapLog.class);
@@ -83,6 +86,8 @@ public class FileTxnSnapLog {
      * restore to gather information
      * while the data is being
      * restored.
+     * <p>
+     * 接收事务应用过程中的回调
      */
     public interface PlayBackListener {
         void onTxnLoaded(TxnHeader hdr, Record rec);
@@ -164,6 +169,7 @@ public class FileTxnSnapLog {
 
         // check content of transaction log and snapshot dirs if they are two different directories
         // See ZOOKEEPER-2967 for more details
+        //用来检查当dataDir和snapDir不同时，dataDir是否包含了快照文件，snapDir是否包含了事务日志文件
         if (!this.dataDir.getPath().equals(this.snapDir.getPath())) {
             checkLogDir();
             checkSnapDir();
@@ -231,10 +237,13 @@ public class FileTxnSnapLog {
      * @param listener the playback listener to run on the
      *                 database restoration
      * @return the highest zxid restored
-     * @throws IOException
+     * @throws IOException 方法参数中DataTree dt, Map<Long, Integer> sessions是要恢复内存数据库的对象，其实就是ZKDatabase中的属性
+     *                     PlayBackListener 是用来修正事务日志时回调用的
      */
     public long restore(DataTree dt, Map<Long, Integer> sessions,
                         PlayBackListener listener) throws IOException {
+
+        //解析快照数据
         long deserializeResult = snapLog.deserialize(dt, sessions);
         FileTxnLog txnLog = new FileTxnLog(dataDir);
 
@@ -249,6 +258,8 @@ public class FileTxnSnapLog {
             if (txnLog.getLastLoggedZxid() != -1) {
                 // ZOOKEEPER-3056: provides an escape hatch for users upgrading
                 // from old versions of zookeeper (3.4.x, pre 3.5.3).
+
+                //默认相信空磁盘数据，因为服务器第一次启动的时候数据一般为空
                 if (!trustEmptySnapshot) {
                     throw new IOException(EMPTY_SNAPSHOT_WARNING + "Something is broken!");
                 } else {
@@ -276,7 +287,7 @@ public class FileTxnSnapLog {
      * @param listener the playback listener to run on the
      *                 database transactions.
      * @return the highest zxid restored.
-     * @throws IOException
+     * @throws IOException 获取最新的ZXID
      */
     public long fastForwardFromEdits(DataTree dt, Map<Long, Integer> sessions,
                                      PlayBackListener listener) throws IOException {
@@ -411,7 +422,7 @@ public class FileTxnSnapLog {
      * @param dataTree             the datatree to be serialized onto disk
      * @param sessionsWithTimeouts the session timeouts to be
      *                             serialized onto disk
-     * @throws IOException
+     * @throws IOException 根据当前dataTree的最新事务id生成快照文件名，然后将dataTree的内容和sessionsWithTimeouts（会话信息）序列化，存到指定磁盘位置
      */
     public void save(DataTree dataTree,
                      ConcurrentHashMap<Long, Integer> sessionsWithTimeouts)

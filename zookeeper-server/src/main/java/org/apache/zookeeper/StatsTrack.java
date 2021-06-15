@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,8 @@ package org.apache.zookeeper;
 
 /**
  * a class that represents the stats associated with quotas
+ *
+ * 记录某个节点实际的count和bytes长度信息
  */
 public class StatsTrack {
     private int count;
@@ -34,10 +36,12 @@ public class StatsTrack {
     public StatsTrack() {
         this(null);
     }
+
     /**
      * the stat string should be of the form count=int,bytes=long
      * if stats is called with null the count and bytes are initialized
      * to -1.
+     *
      * @param stats the stat string to be intialized with
      */
     public StatsTrack(String stats) {
@@ -65,8 +69,7 @@ public class StatsTrack {
     /**
      * set the count for this stat tracker.
      *
-     * @param count
-     *            the count to set with
+     * @param count the count to set with
      */
     public void setCount(int count) {
         this.count = count;
@@ -84,8 +87,7 @@ public class StatsTrack {
     /**
      * set teh bytes for this stat tracker.
      *
-     * @param bytes
-     *            the bytes to set with
+     * @param bytes the bytes to set with
      */
     public void setBytes(long bytes) {
         this.bytes = bytes;

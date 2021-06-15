@@ -78,7 +78,7 @@ public class ProposalRequestProcessor implements RequestProcessor {
             zks.getLeader().processSync((LearnerSyncRequest)request);
         } else {
             nextProcessor.processRequest(request);
-            //hdr不为空，说明是事物请求，委托给leader，发送proposal消息
+            //hdr不为空，说明是事务请求，委托给leader，发送proposal消息
             if (request.getHdr() != null) {
                 try {
                     //leader发出提议,集群进行投票

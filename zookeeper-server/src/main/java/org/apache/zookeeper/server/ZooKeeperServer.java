@@ -291,10 +291,12 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
          *
          * See ZOOKEEPER-1642 for more detail.
          */
+        //如果是leader服务器，会在lead方法中再次调用该方法，此时zkDb.isInitialized()=true,仅做快照存储的工作
         if (zkDb.isInitialized()) {    // 内存数据库已被初始化
             // 设置为最后处理的Zxid
             setZxid(zkDb.getDataTreeLastProcessedZxid());
         } else {  // 未被初始化，则加载数据库
+            //第一次初始化
             setZxid(zkDb.loadDataBase());
         }
 
@@ -474,7 +476,8 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         startSessionTracker();
 
         //设置请求处理器
-        // PrepRequestProcessor --> SyncRequestProcessor -->  FinalRequestProcessor
+        // 单机服务的处理链（ZookeeperServer）：PrepRequestProcessor --> SyncRequestProcessor -->  FinalRequestProcessor
+        // follower(FollowerZooKeeperServer) 和 leader（LeaderZooKeeperServer）的都有各自的处理器连
         setupRequestProcessors();
 
         //注册jmx

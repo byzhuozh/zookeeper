@@ -283,10 +283,10 @@ public class Learner {
 
         self.authLearner.authenticate(sock, hostname);
 
-        //读取 leader 的输入流
+        //获取 flower 的输入流
         leaderIs = BinaryInputArchive.getArchive(new BufferedInputStream(sock.getInputStream()));
         bufferedOutput = new BufferedOutputStream(sock.getOutputStream());
-        //读取 leader 的输出流
+        //获取 flower 的输出流
         leaderOs = BinaryOutputArchive.getArchive(bufferedOutput);
     }
 
@@ -307,18 +307,22 @@ public class Learner {
      * Once connected to the leader, perform the handshake protocol to
      * establish a following / observing connection.
      *
+     * leader 向 follower 发送 LEADERINFO 信息，告知 follower 新的 epoch 值
+     * follower 接收解析 LEADERINFO 信息，若 new epoch 值大于 current accepted epoch 值则更新 acceptedEpoch
+     * follower 向 leader 发送 ACKEPOCH 信息，反馈 leader 已收到新的 epoch 值，并附带 follower 节点的 last zxid
+     *
      * @param pktType
      * @return the zxid the Leader sends for synchronization purposes.
      * @throws IOException
      */
     protected long registerWithLeader(int pktType) throws IOException {
-        /*
-         * Send follower info, including last zxid and sid
-         */
+        // 向 leader 发送 follower info 信息，包括 last zxid 和 sid
         long lastLoggedZxid = self.getLastLoggedZxid();
 
         // 组装 QuorumPacket，向 leader 发送 数据包
         QuorumPacket qp = new QuorumPacket();
+        // follower 的包类型为：FOLLOWERINFO
+        // observe  的包类型为：OBSERVERINFO
         qp.setType(pktType);
         qp.setZxid(ZxidUtils.makeZxid(self.getAcceptedEpoch(), 0));
 
@@ -326,24 +330,33 @@ public class Learner {
          * Add sid to payload
          */
         LearnerInfo li = new LearnerInfo(self.getId(), 0x10000, self.getQuorumVerifier().getVersion());
+
+        //序列化 flower 的当前信息(数据的版本，以及 myId)，发送给 leader
         ByteArrayOutputStream bsid = new ByteArrayOutputStream();
         BinaryOutputArchive boa = BinaryOutputArchive.getArchive(bsid);
         boa.writeRecord(li, "LearnerInfo");
         qp.setData(bsid.toByteArray());
 
-        //向 leader 发送当前的事务位置
+        // follower 向 leader 发送 FOLLOWERINFO 信息，包括 zxid，sid，protocol version
         writePacket(qp, true);
 
-        //读取数据
+        // follower 接收 leader 发送的 LEADERINFO 信息
         readPacket(qp);
+
+        //解析 leader 发送的 new epoch 值
         final long newEpoch = ZxidUtils.getEpochFromZxid(qp.getZxid());
+
+        //收到 leader 的包类型：LEADERINFO
         if (qp.getType() == Leader.LEADERINFO) {
             // we are connected to a 1.0 server so accept the new epoch and read the next packet
             leaderProtocolVersion = ByteBuffer.wrap(qp.getData()).getInt();
             byte epochBytes[] = new byte[4];
             final ByteBuffer wrappedEpochBytes = ByteBuffer.wrap(epochBytes);
+
+            // new epoch > current accepted epoch 则更新 acceptedEpoch 值
             if (newEpoch > self.getAcceptedEpoch()) {
                 wrappedEpochBytes.putInt((int) self.getCurrentEpoch());
+                // 更新逻辑时钟
                 self.setAcceptedEpoch(newEpoch);
             } else if (newEpoch == self.getAcceptedEpoch()) {
                 // since we have already acked an epoch equal to the leaders, we cannot ack
@@ -354,11 +367,12 @@ public class Learner {
             } else {
                 throw new IOException("Leaders epoch, " + newEpoch + " is less than accepted epoch, " + self.getAcceptedEpoch());
             }
+
+            //follower 向 leader 发送 ACKEPOCH 信息，包括 last zxid
             QuorumPacket ackNewEpoch = new QuorumPacket(Leader.ACKEPOCH, lastLoggedZxid, epochBytes, null);
             writePacket(ackNewEpoch, true);
             return ZxidUtils.makeZxid(newEpoch, 0);
         } else {
-
             // 更新 flower 当前的逻辑时钟
             if (newEpoch > self.getAcceptedEpoch()) {
                 self.setAcceptedEpoch(newEpoch);
@@ -399,7 +413,7 @@ public class Learner {
             if (qp.getType() == Leader.DIFF) {
                 LOG.info("Getting a diff from the leader 0x{}", Long.toHexString(qp.getZxid()));
                 snapshotNeeded = false;
-            } else if (qp.getType() == Leader.SNAP) {   // 执行加载全量数据
+            } else if (qp.getType() == Leader.SNAP) {   //如果是SNAP包，则从leader复制一份镜像数据到本地内存
                 LOG.info("Getting a snapshot from leader 0x" + Long.toHexString(qp.getZxid()));
                 // The leader is going to dump the database
                 // db is clear as part of deserializeSnapshot()
@@ -417,7 +431,7 @@ public class Learner {
                     throw new IOException("Missing signature");
                 }
                 zk.getZKDatabase().setlastProcessedZxid(qp.getZxid());
-            } else if (qp.getType() == Leader.TRUNC) {    // 执行回滚
+            } else if (qp.getType() == Leader.TRUNC) {    //TRUNC包，回滚到对应事务
                 //we need to truncate the log to the lastzxid of the leader
                 LOG.warn("Truncating log to get in sync with the leader 0x"
                         + Long.toHexString(qp.getZxid()));
@@ -437,6 +451,7 @@ public class Learner {
 
             }
             zk.getZKDatabase().initConfigInZKDatabase(self.getQuorumVerifier());
+            //启动过期session检查
             zk.createSessionTracker();
 
             long lastQueued = 0;
@@ -451,10 +466,11 @@ public class Learner {
             // we are now going to start getting transactions to apply followed by an UPTODATE
             outerLoop:
 
+            //同步完数据后，准备执行投票
             while (self.isRunning()) {
                 readPacket(qp);
                 switch (qp.getType()) {
-                    case Leader.PROPOSAL:   // 处理提案
+                    case Leader.PROPOSAL:   // 处理提案，将投票添加到待处理列表
                         PacketInFlight pif = new PacketInFlight();
                         pif.hdr = new TxnHeader();
                         pif.rec = SerializeUtils.deserializeTxn(qp.getData(), pif.hdr);
@@ -474,7 +490,7 @@ public class Learner {
 
                         packetsNotCommitted.add(pif);
                         break;
-                    case Leader.COMMIT:
+                    case Leader.COMMIT:   // COMMIT则将事务交给Server处理掉
                     case Leader.COMMITANDACTIVATE:
                         pif = packetsNotCommitted.peekFirst();
                         if (pif.hdr.getZxid() == qp.getZxid() && qp.getType() == Leader.COMMITANDACTIVATE) {
@@ -533,7 +549,7 @@ public class Learner {
                         }
 
                         break;
-                    case Leader.UPTODATE:
+                    case Leader.UPTODATE:   //UPTODATE包，说明同步成功，退出循环
                         LOG.info("Learner received UPTODATE message");
                         if (newLeaderQV != null) {
                             boolean majorChange =
@@ -549,7 +565,7 @@ public class Learner {
                         self.setZooKeeperServer(zk);
                         self.adminServer.setZooKeeperServer(zk);
                         break outerLoop;
-                    case Leader.NEWLEADER: // Getting NEWLEADER here instead of in discovery
+                    case Leader.NEWLEADER: // NEWLEADER包，说明之前残留的投票已经处理完了，则将内存中数据写文件，并发送ACK包
                         // means this is Zab 1.0
                         LOG.info("Learner received NEWLEADER message");
                         if (qp.getData() != null && qp.getData().length > 1) {

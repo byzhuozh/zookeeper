@@ -61,6 +61,11 @@ public class Follower extends Learner {
      * the main method called by the follower to follow the leader
      *
      * @throws InterruptedException
+     *
+     * 逻辑：
+     *     1.请求连接 leader
+     *     2.提交节点信息计算新的 epoch 值
+     *     3.数据同步
      */
     void followLeader() throws InterruptedException {
         self.end_fle = Time.currentElapsedTime();
@@ -79,7 +84,7 @@ public class Follower extends Learner {
                 //连接 leader
                 connectToLeader(leaderServer.addr, leaderServer.hostname);
 
-                //注册follower，根据Leader和follower协议，主要是同步选举轮数, 同步最新的起始zxid
+                //follower 向 leader 提交节点信息（FOLLOWERINFO 类型的包）, 用于计算新的 epoch 值
                 long newEpochZxid = registerWithLeader(Leader.FOLLOWERINFO);
 
                 if (self.isReconfigStateChange())
@@ -87,6 +92,7 @@ public class Follower extends Learner {
 
                 //check to see if the leader zxid is lower than ours
                 //this should never happen but is just a safety check
+                //提取新的 epoch
                 long newEpoch = ZxidUtils.getEpochFromZxid(newEpochZxid);
 
                 //如果leader 同步过来的新的逻辑时钟比自身(flower)的还小，则说明是有异常的
@@ -96,7 +102,7 @@ public class Follower extends Learner {
                     throw new IOException("Error: Epoch of leader is lower");
                 }
 
-                //同步数据
+                // follower 与 leader 进行数据同步
                 syncWithLeader(newEpochZxid);
                 QuorumPacket qp = new QuorumPacket();
 

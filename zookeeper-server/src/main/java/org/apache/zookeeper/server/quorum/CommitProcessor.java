@@ -355,6 +355,7 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
         if (LOG.isDebugEnabled()) {
             LOG.debug("Processing request:: " + request);
         }
+
         queuedRequests.add(request);
         if (!isWaitingForCommit()) {
             wakeup();

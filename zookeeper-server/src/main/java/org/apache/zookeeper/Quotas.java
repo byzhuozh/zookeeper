@@ -30,18 +30,21 @@ public class Quotas {
 
     /** the zookeeper quota node that acts as the quota
      * management node for zookeeper */
+    //配额目录
     public static final String quotaZookeeper = "/zookeeper/quota";
 
     /**
      * the limit node that has the limit of
      * a subtree
      */
+    //node限制的结尾后缀
     public static final String limitNode = "zookeeper_limits";
 
     /**
      * the stat node that monitors the limit of
      * a subtree.
      */
+    //node实际状态的结尾后缀
     public static final String statNode = "zookeeper_stats";
 
     /**
@@ -50,6 +53,7 @@ public class Quotas {
      * @param path the actual path in zookeeper.
      * @return the limit quota path
      */
+    //zk某个节点path转换成对应的limit path
     public static String quotaPath(String path) {
         return quotaZookeeper + path +
         "/" + limitNode;
@@ -61,6 +65,7 @@ public class Quotas {
      * @param path the actual path in zookeeper
      * @return the stat quota path
      */
+    //zk某个节点path转换成对应的stat path
     public static String statPath(String path) {
         return quotaZookeeper + path + "/" +
         statNode;

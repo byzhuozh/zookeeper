@@ -39,6 +39,8 @@ import static org.apache.zookeeper.common.StringUtils.split;
 public final class ConnectStringParser {
     private static final int DEFAULT_PORT = 2181;
 
+    //zk 可通过前缀 /xxx 用作环境的隔离：
+    //eg： 127.0.0.1:8080/zzh   则：在服务端，查看节点时，必须带上/zzh， chrootPath 即: zzh
     private final String chrootPath;
 
     private final ArrayList<InetSocketAddress> serverAddresses = new ArrayList<InetSocketAddress>();

@@ -135,7 +135,7 @@ public class ZooKeeperServerMain {
             zkServer.registerServerShutdownHandler(new ZooKeeperServerShutdownHandler(shutdownLatch));
 
             // 启动 Admin server ( zookeeper.admin.enableServer = false, 可以指定不启动),
-            // 主要是用来接收一些执行命令的请求, 默认实现为JettyAdminServer
+            // 主要是用来接收一些执行命令的请求, 默认实现为 JettyAdminServer
             // 可通过http://<hostname>:8080/commands/<commandname>的方式访问
             adminServer = AdminServerFactory.createAdminServer();
             adminServer.setZooKeeperServer(zkServer);

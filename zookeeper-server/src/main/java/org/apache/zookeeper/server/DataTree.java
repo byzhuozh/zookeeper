@@ -77,16 +77,20 @@ import java.util.concurrent.ConcurrentHashMap;
  * through the hashtable. The tree is traversed only when serializing to disk.
  */
 public class DataTree {
+
     private static final Logger LOG = LoggerFactory.getLogger(DataTree.class);
 
     /**
      * This hashtable provides a fast lookup to the datanodes. The tree is the
      * source of truth and is where all the locking occurs
      */
+    //节点路径为key,节点数据内容DataNode为value.实时存储了所有的zk节点，使用ConcurrentHashMap保证并发性
     private final ConcurrentHashMap<String, DataNode> nodes = new ConcurrentHashMap<String, DataNode>();
 
+    //节点数据对应的watch
     private final WatchManager dataWatches = new WatchManager();
 
+    //节点路径对应的watch
     private final WatchManager childWatches = new WatchManager();
 
     /**
@@ -134,6 +138,7 @@ public class DataTree {
     /**
      * This hashtable lists the paths of the ephemeral nodes of a session.
      */
+    //key为sessionId, value为该会话对应的临时节点路径，方便实时访问和清理
     private final Map<Long, HashSet<String>> ephemerals = new ConcurrentHashMap<Long, HashSet<String>>();
 
     /**
@@ -789,6 +794,7 @@ public class DataTree {
 
     }
 
+    //内存数据库的最大zxid
     public volatile long lastProcessedZxid = 0;
 
     public ProcessTxnResult processTxn(TxnHeader header, Record txn) {

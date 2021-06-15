@@ -18,31 +18,8 @@
 
 package org.apache.zookeeper.server.quorum;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.net.BindException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.net.SocketException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
-
-import javax.security.sasl.SaslException;
-
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.common.Time;
-import org.apache.zookeeper.common.X509Exception;
 import org.apache.zookeeper.server.FinalRequestProcessor;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.RequestProcessor;
@@ -53,6 +30,17 @@ import org.apache.zookeeper.server.util.SerializeUtils;
 import org.apache.zookeeper.server.util.ZxidUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.security.sasl.SaslException;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.net.*;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 /**
@@ -128,8 +116,8 @@ public class Leader {
     }
 
     // list of followers that are ready to follow (i.e synced with the leader)
-    private final HashSet<LearnerHandler> forwardingFollowers =
-            new HashSet<LearnerHandler>();
+    // follower 的处理器集合
+    private final HashSet<LearnerHandler> forwardingFollowers = new HashSet<LearnerHandler>();
 
     /**
      * Returns a copy of the current forwarding follower snapshot
@@ -391,7 +379,7 @@ public class Leader {
                     Socket s = null;
                     boolean error = false;
                     try {
-                        //监听 flower lianjie
+                        //接收 follower 的连接，并开启 LearnerHandler 线程用于处理二者之间的通信
                         s = ss.accept();
 
                         // start with the initLimit, once the ack is processed
@@ -458,14 +446,19 @@ public class Leader {
      * This method is main function that is called to lead
      *
      * @throws IOException
-     * @throws InterruptedException
+     * @throws InterruptedException 主要逻辑：
+     *                              1.接收 follower 连接
+     *                              2.计算新的 epoch 值
+     *                              3.通知统一 epoch 值
+     *                              4.数据同步
+     *                              5.启动 zk server 对外提供服务
      */
     void lead() throws IOException, InterruptedException {
         self.end_fle = Time.currentElapsedTime();
         long electionTimeTaken = self.end_fle - self.start_fle;
         self.setElectionTimeTaken(electionTimeTaken);
-        LOG.info("LEADING - LEADER ELECTION TOOK - {} {}", electionTimeTaken,
-                QuorumPeer.FLE_TIME_UNIT);
+        LOG.info("LEADING - LEADER ELECTION TOOK - {} {}", electionTimeTaken, QuorumPeer.FLE_TIME_UNIT);
+
         self.start_fle = 0;
         self.end_fle = 0;
 
@@ -481,13 +474,13 @@ public class Leader {
             leaderStateSummary = new StateSummary(self.getCurrentEpoch(), zk.getLastProcessedZxid());
 
             // Start thread that waits for connection requests from new followers.
-            // 启动 lead端 口的监听线程，专门用来监听新的follower
+            // 启动 lead端 口的监听线程，专门用来监听新的 follower
             // ip:port1:port2  port1端口为数据通信端口,port2为选举通信端口
             cnxAcceptor = new LearnerCnxAcceptor();
             cnxAcceptor.start();
 
-            //获取当前节点的逻辑时钟
-            //等待足够多的follower进来，代表自己确实是leader，此处lead线程可能会等待
+            //阻塞等待计算新的 epoch 值，并设置 zxid
+            //等待足够多的 follower 进来，代表自己确实是leader，此处lead线程可能会等待
             long epoch = getEpochToPropose(self.getId(), self.getAcceptedEpoch());
 
             //由0开始重新生成zxid
@@ -498,7 +491,6 @@ public class Leader {
             }
 
             newLeaderProposal.packet = new QuorumPacket(NEWLEADER, zk.getZxid(), null, null);
-
 
             if ((newLeaderProposal.packet.getZxid() & 0xffffffffL) != 0) {
                 LOG.info("NEWLEADER proposal has Zxid of " + Long.toHexString(newLeaderProposal.packet.getZxid()));
@@ -544,12 +536,12 @@ public class Leader {
             // We have to get at least a majority of servers in sync with
             // us. We do this by waiting for the NEWLEADER packet to get
             // acknowledged
-
+            // 阻塞等待接收过半的 follower 节点发送的 ACKEPOCH 信息； 此时说明已经确定了本轮选举后 epoch 值
             waitForEpochAck(self.getId(), leaderStateSummary);
             self.setCurrentEpoch(epoch);
 
             try {
-                // 统一 zxid, 等待 flower 响应
+                // 阻塞等待 超过半数的节点 follower 发送了 NEWLEADER ACK 信息；此时说明过半的 follower 节点已经完成数据同步
                 waitForNewLeaderAck(self.getId(), zk.getZxid());
             } catch (InterruptedException e) {
                 shutdown("Waiting for a quorum of followers, only synced with sids: [ "
@@ -576,7 +568,7 @@ public class Leader {
             }
 
             // 选主结束
-            // 启动zk服务,对外提供服务
+            // 启动zk服务, 此时集群可以对外正式提供服务
             startZkServer();
 
             /**
@@ -959,6 +951,7 @@ public class Leader {
                         + " not "
                         + next.getClass().getName());
             }
+
             this.leader = leader;
             this.next = next;
         }
@@ -1113,10 +1106,13 @@ public class Leader {
             throw new XidRolloverException(msg);
         }
 
+
+        //序列化事务请求
         byte[] data = SerializeUtils.serializeRequest(request);
         proposalStats.setLastBufferSize(data.length);
         QuorumPacket pp = new QuorumPacket(Leader.PROPOSAL, request.zxid, data, null);
 
+        //组装提议
         Proposal p = new Proposal();
         p.packet = pp;
         p.request = request;
@@ -1138,6 +1134,8 @@ public class Leader {
 
             lastProposed = p.packet.getZxid();
             outstandingProposals.put(lastProposed, p);
+
+            //发送提议 (添加到发送队列中) LearnerHandler#queuedPackets
             sendPacket(pp);
         }
         return p;
@@ -1222,12 +1220,23 @@ public class Leader {
     // VisibleForTesting
     protected final Set<Long> connectingFollowers = new HashSet<Long>();
 
+    /**
+     * 此过程 leader 会进入阻塞状态直到过半的 follower 参与到计算才会进入下一阶段
+     *
+     * @param sid
+     * @param lastAcceptedEpoch
+     * @return
+     * @throws InterruptedException
+     * @throws IOException
+     */
     public long getEpochToPropose(long sid, long lastAcceptedEpoch) throws InterruptedException, IOException {
         synchronized (connectingFollowers) {
             if (!waitingForNewEpoch) {
                 return epoch;
             }
 
+            // epoch 用来记录计算后的选举周期值
+            // follower 或 leader 的 acceptedEpoch 值与 epoch 比较；若前者大则将其加一
             if (lastAcceptedEpoch >= epoch) {
                 //开始新的纪元(新的逻辑时钟)
                 epoch = lastAcceptedEpoch + 1;
@@ -1240,12 +1249,15 @@ public class Leader {
             }
 
             //如果足够多的follower进入，选举有效，则无需等待，并通知其他的等待线程，类似于Barrier
+            //判断是否已计算出新的 epoch 值的条件是： leader 已经参与了 epoch 值计算，以及超过一半的节点参与了计算
             QuorumVerifier verifier = self.getQuorumVerifier();
             if (connectingFollowers.contains(self.getId()) &&
                     verifier.containsQuorum(connectingFollowers)) {  //超过半数
+                // 将 waitingForNewEpoch 设置为 false 说明不需要等待计算新的 epoch 值了
                 waitingForNewEpoch = false;
-                //更新选举轮次
+                // 设置 leader 的 acceptedEpoch 值
                 self.setAcceptedEpoch(epoch);
+                // 唤醒 connectingFollowers wait 的线程
                 connectingFollowers.notifyAll();
             } else {
                 //如果进入的 follower 不够，则进入等待，超时即为initLimit时间
@@ -1254,6 +1266,7 @@ public class Leader {
                 long end = start + self.getInitLimit() * self.getTickTime();
                 //自选等待
                 while (waitingForNewEpoch && cur < end) {
+                    // 若未完成新的 epoch 值计算则阻塞等待
                     connectingFollowers.wait(end - cur);
                     cur = Time.currentElapsedTime();
                 }
