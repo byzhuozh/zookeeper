@@ -441,8 +441,7 @@ public class ClientCnxn {
     }
 
     class EventThread extends ZooKeeperThread {
-        private final LinkedBlockingQueue<Object> waitingEvents =
-                new LinkedBlockingQueue<Object>();
+        private final LinkedBlockingQueue<Object> waitingEvents = new LinkedBlockingQueue<Object>();
 
         /**
          * This is really the queued session state until the event
@@ -675,11 +674,14 @@ public class ClientCnxn {
     protected void finishPacket(Packet p) {
         int err = p.replyHeader.getErr();
         if (p.watchRegistration != null) {
+            //将事件注册到 zkwatchemanager 中 watchRegistration
+            //在组装请求的时候，我们初始化了这个对象 把 watchRegistration 子类里面的 Watcher 实例放到 ZKWatchManager 的 exists Watches 中存储起来。
             p.watchRegistration.register(err);
         }
 
         // Add all the removed watch events to the event queue, so that the
         // clients will be notified with 'Data/Child WatchRemoved' event type.
+        //将所有移除的监视事件添加到事件队列, 这样客户端能收到 “data/child 事件被移除”的事件类型
         if (p.watchDeregistration != null) {
             Map<EventType, Set<Watcher>> materializedWatchers = null;
             try {
@@ -700,6 +702,7 @@ public class ClientCnxn {
             }
         }
 
+        //cb 就是 AsnycCallback，如果为 null，表明是同步调用的接口，不需要异步回掉，因此，直接 notifyAll 即可。
         if (p.cb == null) {
             synchronized (p) {
                 p.finished = true;
@@ -857,8 +860,7 @@ public class ClientCnxn {
                 //构建监听事件
                 WatchedEvent we = new WatchedEvent(event);
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got " + we + " for sessionid 0x"
-                            + Long.toHexString(sessionId));
+                    LOG.debug("Got " + we + " for sessionid 0x" + Long.toHexString(sessionId));
                 }
 
                 //将监听事件添加到  eventThread 的队列中
@@ -877,12 +879,15 @@ public class ClientCnxn {
                 return;
             }
 
+
+            //走到这里: 说明只是收到服务端的正常请求响应，不是 watch 的回调
             Packet packet;
             synchronized (pendingQueue) {
                 if (pendingQueue.size() == 0) {
                     throw new IOException("Nothing in the queue, but got "
                             + replyHdr.getXid());
                 }
+                //因为当前这个数据包已经收到了响应，所以讲它从 pendingQueued 中移除
                 packet = pendingQueue.remove();
             }
 
@@ -891,6 +896,7 @@ public class ClientCnxn {
              * to the first request!
              */
             try {
+                //校验数据包信息，校验成功后讲数据包信息进行更新（替换为服务端的信息）
                 if (packet.requestHeader.getXid() != replyHdr.getXid()) {
                     packet.replyHeader.setErr(
                             KeeperException.Code.CONNECTIONLOSS.intValue());
@@ -909,6 +915,8 @@ public class ClientCnxn {
                 if (replyHdr.getZxid() > 0) {
                     lastZxid = replyHdr.getZxid();
                 }
+                //获得服务端的响应，反序列化以后设置到 packet.response 属性中。
+                // 所以在 exists 方法的最后一行通过 packet.response 拿到改请求的返回结果
                 if (packet.response != null && replyHdr.getErr() == 0) {
                     packet.response.deserialize(bbia, "response");
                 }
@@ -918,6 +926,7 @@ public class ClientCnxn {
                             + Long.toHexString(sessionId) + ", packet:: " + packet);
                 }
             } finally {
+                //最后调用 finishPacket 方法完成处理
                 finishPacket(packet);
             }
         }
@@ -1134,6 +1143,7 @@ public class ClientCnxn {
             final int MAX_SEND_PING_INTERVAL = 10000; //10 seconds
             InetSocketAddress serverAddress = null;
 
+            //state != CLOSED && this != AUTH_FAILED;
             while (state.isAlive()) {
                 try {
                     //当前是未连接状态（或连接失败）

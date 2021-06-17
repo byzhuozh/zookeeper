@@ -2033,25 +2033,34 @@ public class ZooKeeper implements AutoCloseable {
         // the watch contains the un-chroot path
         WatchRegistration wcb = null;
         if (watcher != null) {
+            //封装观察对象
             wcb = new DataWatchRegistration(watcher, clientPath);
         }
 
+        //得到节点的服务器全路径
         final String serverPath = prependChroot(clientPath);
 
+        //定义请求头对象
         RequestHeader h = new RequestHeader();
+        //设置本次请求类型 getData
         h.setType(ZooDefs.OpCode.getData);
+        //实例化request对象和属性定义
         GetDataRequest request = new GetDataRequest();
         request.setPath(serverPath);
         request.setWatch(watcher != null);
+        //实例化respinse对象
         GetDataResponse response = new GetDataResponse();
+        //进行请求并阻塞等待得到回复信息
         ReplyHeader r = cnxn.submitRequest(h, request, response, wcb);
         if (r.getErr() != 0) {
             throw KeeperException.create(KeeperException.Code.get(r.getErr()),
                     clientPath);
         }
         if (stat != null) {
+            //将成功后返回的节点状态信息转写到用户指定的Stat对象中
             DataTree.copyStat(response.getStat(), stat);
         }
+        //返回节点数据
         return response.getData();
     }
 

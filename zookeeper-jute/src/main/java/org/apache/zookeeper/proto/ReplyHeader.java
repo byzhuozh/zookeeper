@@ -27,6 +27,11 @@ public class ReplyHeader implements Record {
     //-1 表示通知类型的响应
     private int xid;
     private long zxid;
+
+    /**
+     * {@link org.apache.zookeeper.KeeperException.Code}
+     */
+    //错误码，0表示操作成功
     private int err;
 
     public ReplyHeader() {
