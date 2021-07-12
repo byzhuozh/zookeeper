@@ -185,6 +185,7 @@ public class Follower extends Learner {
                 revalidate(qp);
                 break;
             case Leader.SYNC:
+                //同步请求
                 fzk.sync();
                 break;
             default:

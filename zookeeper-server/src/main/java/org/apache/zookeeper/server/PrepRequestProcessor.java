@@ -939,7 +939,8 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements
         }
 
         request.zxid = zks.getZxid();
-        //将请求提交到下一个处理器中  （SyncRequestProcessor）
+        //将请求提交到下一个处理器中  （单机：SyncRequestProcessor）
+        //Leader: ProposalRequestProcessor
         nextProcessor.processRequest(request);
     }
 

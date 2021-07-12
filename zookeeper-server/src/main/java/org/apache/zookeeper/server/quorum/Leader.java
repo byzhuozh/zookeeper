@@ -782,6 +782,7 @@ public class Leader {
         // in order to be committed, a proposal must be accepted by a quorum.
         //
         // getting a quorum from all necessary configurations.
+        // 校验是否超过半数的 ack 应答
         if (!p.hasAllQuorums()) {
             return false;
         }
@@ -831,6 +832,7 @@ public class Leader {
         } else {
             //提交，发给所有参与者
             commit(zxid);
+
             //告诉所有观察者
             inform(p);
         }

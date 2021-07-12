@@ -969,6 +969,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             throw re;
         }
 
+        // electionType 默认是3，采用快速选举策略 FastLeaderElection
         if (electionType == 0) {
             try {
                 udpSocket = new DatagramSocket(getQuorumAddress().getPort());

@@ -748,6 +748,7 @@ public class FastLeaderElection implements Election {
         //看所有选票里投的sid和vote一致的
         for (Map.Entry<Long, Vote> entry : votes.entrySet()) {
             if (vote.equals(entry.getValue())) {
+                //对投中的人进行打标
                 voteSet.addAck(entry.getKey());
             }
         }
@@ -910,7 +911,7 @@ public class FastLeaderElection implements Election {
             synchronized (this) {
                 //增加选举轮次
                 logicalclock.incrementAndGet();
-                //初始化选票，先选举自己为leader
+                //初始化提议，先选举自己为leader
                 updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch());
             }
 

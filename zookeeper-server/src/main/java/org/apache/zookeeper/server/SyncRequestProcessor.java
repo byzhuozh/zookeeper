@@ -178,7 +178,7 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements
                         // processor
                         if (nextProcessor != null) {
 
-                            //将请求提交到下一个处理器   FinalRequestProcessor
+                            //单机：将请求提交到下一个处理器   FinalRequestProcessor
                             nextProcessor.processRequest(si);
 
                             if (nextProcessor instanceof Flushable) {
